@@ -1,0 +1,4 @@
+interface:
+  display_name: "Java Spring Coding Standards"
+  short_description: "Apply shared Java and Spring coding standards with repository overrides."
+  default_prompt: "Apply our Java and Spring coding standards to this change, honoring repository-specific overrides."
