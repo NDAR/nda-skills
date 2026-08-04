@@ -1,0 +1,4 @@
+interface:
+  display_name: "Java Spring Verification"
+  short_description: "Verify Maven, coverage, and SonarQube quality gates."
+  default_prompt: "Use $java-spring-verification to verify this Java service change."
