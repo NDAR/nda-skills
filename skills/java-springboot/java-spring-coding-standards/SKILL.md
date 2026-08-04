@@ -24,6 +24,7 @@ An explicit target-repository rule overrides this baseline. State the override a
 ## Shared Java/Spring Baseline
 
 - Use clear, domain-oriented names; keep packages coherent with the repository's existing feature or layer layout.
+- Write Javadoc for every class and public method, plus private methods whose behavior is significant or non-obvious.
 - Prefer constructor injection; do not add field injection.
 - Bind external configuration with `@ConfigurationProperties`, validate it with Bean Validation, and fail early for invalid required configuration.
 - Validate untrusted input at API, messaging, or persistence boundaries; keep internal assumptions explicit.
