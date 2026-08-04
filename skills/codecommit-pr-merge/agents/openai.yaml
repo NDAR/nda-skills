@@ -1,0 +1,4 @@
+interface:
+  display_name: "CodeCommit PR Merge"
+  short_description: "Review and safely merge CodeCommit PRs"
+  default_prompt: "Use $codecommit-pr-merge to review a CodeCommit PR, prepare a squash merge message, merge it after approval, and delete only the source branch."
