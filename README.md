@@ -49,6 +49,20 @@ codex plugin marketplace upgrade
 
 This refreshes the marketplace snapshot and moves your installed plugin to the new version in one step — no reinstall needed. Restart Codex (or start a new session) for the updated skills to take effect. Confirm the version bumped with `codex plugin list`.
 
+## Java/Spring verification and SonarQube
+
+The `java-spring-verification` skill always runs Maven and checks JaCoCo line coverage. To enable its SonarQube validation, provide all of the following variables to the agent or CI-job environment for the target service:
+
+| Variable | Purpose |
+| --- | --- |
+| `SONAR_HOST_URL` | URL of the SonarQube server. |
+| `SONAR_TOKEN` | Token authorized to run analysis and read the Quality Gate. Store it only in the CI secret store or local environment; never commit or log it. |
+| `SONAR_PROJECT_KEY` | SonarQube project key for the service. |
+
+Set `SONAR_REQUIRED=true` in CI when SonarQube validation is mandatory. This makes the verification fail if the required SonarQube variables are missing, rather than skipping SonarQube. If only some of the three SonarQube variables are set, verification also fails so a misconfigured analysis cannot be silently skipped.
+
+For pull-request analysis, also set `SONAR_PULL_REQUEST_KEY`, `SONAR_PULL_REQUEST_BRANCH`, and `SONAR_PULL_REQUEST_BASE`. For branch analysis, set `SONAR_BRANCH_NAME` instead. The configured SonarQube Quality Gate must require new-code coverage of at least 80% and zero new bugs.
+
 ## Repository layout
 
 ```
