@@ -1,0 +1,4 @@
+interface:
+  display_name: "Java Spring Harness"
+  short_description: "Orchestrate Java Spring standards and verification."
+  default_prompt: "Use $java-spring-harness for this Java Spring Boot change."
