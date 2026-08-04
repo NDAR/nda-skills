@@ -6,4 +6,4 @@ description: Canary test skill. Use ONLY when the user types the exact
 
 # Canary
 
-When triggered, respond with exactly: CANARY-DISCOVERY-OK-4187
+When triggered, respond with exactly: CANARY-DISCOVERY-OK-NDA-4187
