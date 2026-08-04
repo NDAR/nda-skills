@@ -19,7 +19,7 @@ direct task requirements
 > shared Java/Spring baseline
 ```
 
-An explicit target-repository rule overrides this baseline. State the override and how it changed the work in the final report.
+Repository rules override this shared baseline; direct task requirements remain highest precedence. State any repository override and how it changed the work in the final report.
 
 ## Shared Java/Spring Baseline
 

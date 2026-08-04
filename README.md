@@ -2,7 +2,7 @@
 
 Shared Codex skills for the NDA team, distributed as a Codex plugin marketplace.
 
-One repo, many consumers: skills live here, every developer's Codex installs them from this marketplace, and updates propagate to the whole team with a single command. Skills apply across all our stacks (Java/Spring Boot microservices, the Python client, the Angular web apps, and the Angular/Electron desktop client). Codex triggers each skill by its description, so a Java skill simply won't fire while you're working in a Python repo — no per-repo configuration needed.
+One repo, many consumers: skills live here, and developers install them from this marketplace with Codex CLI. Updates propagate to the team with a single command. The current skills cover shared workflows and Java/Spring code; Codex triggers each skill by its description, so a Java skill simply will not fire while working in an unrelated repository.
 
 ## Prerequisites
 
@@ -33,11 +33,11 @@ Then restart Codex. Verify the plugin is installed and enabled:
 codex plugin list
 ```
 
-You should see `nda-skills@nda-skills` with status `installed, enabled`. This works identically in the Codex CLI and the VS Code plugin — install once, both surfaces pick it up.
+You should see `nda-skills@nda-skills` with status `installed, enabled`.
 
-### First-run trust
+### Skill UI metadata
 
-Some skills invoke an agent (defined in the skill's `agents/` folder). The first time you invoke such a skill, Codex may prompt you to trust it. This is expected — trust is a per-machine decision and is deliberately not distributed through the repo. Approve it once and it persists.
+An optional `agents/openai.yaml` supplies product-specific UI metadata, such as a display name, short description, and default invocation prompt. It does not define an agent or control runtime trust prompts.
 
 ## Updating (whenever skills change)
 
@@ -56,10 +56,7 @@ This refreshes the marketplace snapshot and moves your installed plugin to the n
 .codex-plugin/plugin.json          # plugin manifest — bump "version" on every change
 skills/
   common/                          # cross-stack skills (PR/commit workflow, etc.)
-  java-springboot/                 # Java 25 / Spring Boot 4.1 conventions
-  python/                          # Python client conventions
-  angular/                         # Angular web app conventions
-  angular-electron/                # Electron desktop client conventions
+  java-springboot/                 # Java and Spring conventions
 ```
 
 Skills are grouped into folders by stack for maintenance clarity. Codex scans nested folders under `skills/`, so grouping does not affect discovery — a skill fires based on its description regardless of which folder it lives in. The folders are for our own navigation.
