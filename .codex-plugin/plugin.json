@@ -1,0 +1,15 @@
+{
+  "name": "nda-skills",
+  "version": "0.1.0",
+  "description": "NDA team skills for Codex across our Java, Python, and Angular repos.",
+  "license": "MIT",
+  "keywords": ["skills", "nda", "team"],
+  "skills": "./skills/",
+  "hooks": {},
+  "interface": {
+    "displayName": "NDA Skills",
+    "shortDescription": "NDA team coding-standards and workflow skills",
+    "category": "Developer Tools",
+    "capabilities": ["Interactive", "Read", "Write"]
+  }
+}
