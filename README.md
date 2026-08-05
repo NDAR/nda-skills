@@ -49,6 +49,10 @@ codex plugin marketplace upgrade
 
 This refreshes the marketplace snapshot and moves your installed plugin to the new version in one step — no reinstall needed. Restart Codex (or start a new session) for the updated skills to take effect. Confirm the version bumped with `codex plugin list`.
 
+## Pair-programming TDD
+
+For requests that create, change, or fix production behavior, NDA Skills works one independently testable story slice at a time. The agent writes and runs a failing test, makes the smallest change to pass it, refactors only while tests remain green, and then reports the evidence. It waits for explicit human approval before beginning the next slice.
+
 ## Java/Spring verification and SonarQube
 
 The `java-spring-verification` skill always runs Maven and checks JaCoCo line coverage. To enable its SonarQube validation, provide all of the following variables to the agent or CI-job environment for the target service:

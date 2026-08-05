@@ -10,13 +10,14 @@ Coordinate the shared Java/Spring guides and computational checks. Keep reposito
 ## Required Workflow
 
 1. Begin by explicitly invoking `java-spring-coding-standards`; report that exact skill name before editing Java or Spring Boot production or test code. Resolve task, repository, tool, local-pattern, and shared-standard precedence.
-2. **REQUIRED SUB-SKILL:** Use the applicable Superpowers workflow:
+2. **REQUIRED SUB-SKILL:** Use `pair-programming-tdd` before implementing any Java or Spring Boot production or test-code change. Complete one story slice, report its TDD evidence, and wait for human approval before starting another slice.
+3. **REQUIRED SUB-SKILL:** Use the applicable Superpowers workflow:
    - `superpowers:test-driven-development` before implementing a feature or bug fix.
    - `superpowers:systematic-debugging` before changing code to address a failure or unexpected behavior.
    - `superpowers:requesting-code-review` after a material implementation change.
-3. Run the repository's fast, relevant checks while iterating. Follow service-specific commands where supplied.
-4. Before reporting completion, explicitly invoke `java-spring-verification`, then run its verification script from the target service root.
-5. Report only fresh evidence: commands run, Maven result, JaCoCo coverage, SonarQube Quality Gate/new-code coverage/new-bug results when configured, and every unavailable or failing required check.
+4. Run the repository's fast, relevant checks while iterating. Follow service-specific commands where supplied.
+5. Before reporting completion, explicitly invoke `java-spring-verification`, then run its verification script from the target service root.
+6. Report only fresh evidence: commands run, Maven result, JaCoCo coverage, SonarQube Quality Gate/new-code coverage/new-bug results when configured, and every unavailable or failing required check.
 
 ## Enforcement Boundary
 
