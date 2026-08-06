@@ -57,11 +57,11 @@ For requests that create, change, or fix production behavior, NDA Skills works o
 
 The `java-spring-verification` skill always runs Maven and checks JaCoCo line coverage. To enable its SonarQube validation, provide all of the following variables to the agent or CI-job environment for the target service:
 
-| Variable | Purpose |
-| --- | --- |
-| `SONAR_HOST_URL` | URL of the SonarQube server. |
-| `SONAR_TOKEN` | Token authorized to run analysis and read the Quality Gate. Store it only in the CI secret store or local environment; never commit or log it. |
-| `SONAR_PROJECT_KEY` | SonarQube project key for the service. |
+| Variable            | Purpose                                                                                                                                        |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SONAR_HOST_URL`    | URL of the SonarQube server.                                                                                                                   |
+| `SONAR_TOKEN`       | Token authorized to run analysis and read the Quality Gate. Store it only in the CI secret store or local environment; never commit or log it. |
+| `SONAR_PROJECT_KEY` | SonarQube project key for the service.                                                                                                         |
 
 Set `SONAR_REQUIRED=true` in CI when SonarQube validation is mandatory. This makes the verification fail if the required SonarQube variables are missing, rather than skipping SonarQube. If only some of the three SonarQube variables are set, verification also fails so a misconfigured analysis cannot be silently skipped.
 
@@ -71,11 +71,11 @@ For pull-request analysis, also set `SONAR_PULL_REQUEST_KEY`, `SONAR_PULL_REQUES
 
 The Angular set mirrors the Java/Spring structure:
 
-| Skill | Purpose |
-| --- | --- |
-| `angular-coding-standards` | Repository-first conventions for Angular/TypeScript, components, templates, state, accessibility, and tests. |
-| `angular-harness` | Coordinate TDD, command discovery, fast checks, review, and completion checks in Angular CLI or Nx workspaces. |
-| `angular-verification` | Run lint, full tests for the selected projects, fresh LCOV coverage, production builds, and configured SonarQube checks. |
+| Skill                      | Purpose                                                                                                                  |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `angular-coding-standards` | Repository-first conventions for Angular/TypeScript, components, templates, state, accessibility, and tests.             |
+| `angular-harness`          | Coordinate TDD, command discovery, fast checks, review, and completion checks in Angular CLI or Nx workspaces.           |
+| `angular-verification`     | Run lint, full tests for the selected projects, fresh LCOV coverage, production builds, and configured SonarQube checks. |
 
 Use `$angular-harness` for an Angular change. The skills honor the installed Angular version, package manager, and test runner; they do not require migrations to newer APIs or tooling.
 
@@ -104,7 +104,7 @@ Version `0.14.0` bundles Codex `PreToolUse` hooks. After installing or upgrading
 
 The hooks cover Git commands issued by Codex only. They do not install Git hooks in target repositories, scan Git commands run outside Codex, or replace required CI/PR checks. Use `$secrets-credential-scanning` for manual scans and PR-range scans.
 
-To allowlist a confirmed false positive (for example, a documented example key used only in a test fixture), add a narrowly-scoped entry to a repo-root `.gitleaks.toml` and get it reviewed like any other code change. gitleaks *replaces* its embedded default ruleset with whatever config it loads from the source root, so the `[extend]` block below is required to keep gitleaks' built-in detection rules active — without it, a custom `.gitleaks.toml` silently disables all default rules and the scan would stop detecting anything:
+To allowlist a confirmed false positive (for example, a documented example key used only in a test fixture), add a narrowly-scoped entry to a repo-root `.gitleaks.toml` and get it reviewed like any other code change. gitleaks _replaces_ its embedded default ruleset with whatever config it loads from the source root, so the `[extend]` block below is required to keep gitleaks' built-in detection rules active — without it, a custom `.gitleaks.toml` silently disables all default rules and the scan would stop detecting anything:
 
 ```toml
 [extend]
@@ -120,6 +120,10 @@ regexes = [
 ```
 
 Never widen an allowlist entry beyond the specific known-fake value or path it covers.
+
+### SonarQube new-code sensor
+
+`sonar-new-code` is the focused command-line companion to the IDE's **Focus on New Code** view. It runs a Maven SonarQube branch or pull-request analysis, waits for the Quality Gate, and reports new-code metrics without printing the token. Use `java-spring-verification` when Maven and JaCoCo verification are also required.
 
 ## Repository layout
 

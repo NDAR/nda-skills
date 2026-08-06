@@ -1,0 +1,4 @@
+interface:
+  display_name: "Sonar New-Code Sensor"
+  short_description: "Run SonarQube new-code analysis"
+  default_prompt: "Use $sonar-new-code to analyze this Java service new code in SonarQube."
