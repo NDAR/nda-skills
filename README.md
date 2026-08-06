@@ -67,6 +67,10 @@ Set `SONAR_REQUIRED=true` in CI when SonarQube validation is mandatory. This mak
 
 For pull-request analysis, also set `SONAR_PULL_REQUEST_KEY`, `SONAR_PULL_REQUEST_BRANCH`, and `SONAR_PULL_REQUEST_BASE`. For branch analysis, set `SONAR_BRANCH_NAME` instead. The configured SonarQube Quality Gate must require new-code coverage of at least 80% and zero new bugs.
 
+### SonarQube new-code sensor
+
+`sonar-new-code` is the focused command-line companion to the IDE's **Focus on New Code** view. It runs a Maven SonarQube branch or pull-request analysis, waits for the Quality Gate, and reports new-code metrics without printing the token. Use `java-spring-verification` when Maven and JaCoCo verification are also required.
+
 ## Repository layout
 
 ```
