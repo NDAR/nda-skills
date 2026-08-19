@@ -61,6 +61,8 @@ grep -Fq 'Secrets scan passed' <<<"$clean_output"
 # gitleaks auto-loads a repo-root .gitleaks.toml only when given --source .;
 # this is the only way an allowlist actually takes effect, so assert we pass it.
 grep -Fq -- '--source .' "$clean_repo/gitleaks.args"
+# --redact is the only thing preventing gitleaks' own console output from containing a raw secret.
+grep -Fq -- '--redact' "$clean_repo/gitleaks.args"
 
 # 2. A finding fails the scan and redacts the raw secret value.
 leak_repo=$(make_repo leak)
@@ -140,5 +142,60 @@ staged_repo=$(make_repo staged)
 grep -Fq 'protect' "$staged_repo/gitleaks.args"
 grep -Fq -- '--staged' "$staged_repo/gitleaks.args"
 grep -Fq -- '--source .' "$staged_repo/gitleaks.args"
+# --redact is the only thing preventing gitleaks' own console output from containing a raw secret.
+grep -Fq -- '--redact' "$staged_repo/gitleaks.args"
+
+# 7. Allowlist round-trip against the REAL gitleaks binary (not the shim): a known
+#    dummy secret fails the scan, then adding it to .gitleaks.toml makes it pass.
+#    This block intentionally does NOT put the fake gitleaks shim on PATH.
+if ! command -v gitleaks >/dev/null 2>&1; then
+  printf 'SKIP: gitleaks not installed, skipping allowlist round-trip test.\n'
+else
+  allowlist_repo=$(make_repo allowlist)
+  (
+    cd "$allowlist_repo"
+    printf 'AKIAIOSFODNN7EXAMPLE\n' > secret.txt
+    git add secret.txt
+    git commit -qm 'add known dummy secret'
+  )
+
+  set +e
+  allowlist_before_output=$(
+    cd "$allowlist_repo"
+    SECRETS_SCAN_BASE=HEAD~1 \
+    "$scanner" 2>&1
+  )
+  allowlist_before_status=$?
+  set -e
+  if (( allowlist_before_status == 0 )); then
+    printf 'Expected the known dummy secret to fail the scan before allowlisting.\n' >&2
+    printf '%s\n' "$allowlist_before_output" >&2
+    exit 1
+  fi
+
+  cat > "$allowlist_repo/.gitleaks.toml" <<'TOML'
+[extend]
+useDefault = true
+
+[allowlist]
+regexes = ['''AKIAIOSFODNN7EXAMPLE''']
+TOML
+
+  set +e
+  allowlist_after_output=$(
+    cd "$allowlist_repo"
+    SECRETS_SCAN_BASE=HEAD~1 \
+    "$scanner" 2>&1
+  )
+  allowlist_after_status=$?
+  set -e
+  if (( allowlist_after_status != 0 )); then
+    printf 'Expected the scan to pass once the known dummy secret was allowlisted.\n' >&2
+    printf '%s\n' "$allowlist_after_output" >&2
+    exit 1
+  fi
+
+  printf 'PASS: allowlist round-trip against the real gitleaks binary confirmed.\n'
+fi
 
 printf 'PASS: gitleaks presence, range/staged modes, redaction, and error handling are enforced.\n'

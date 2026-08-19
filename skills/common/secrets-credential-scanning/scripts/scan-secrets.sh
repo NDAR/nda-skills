@@ -49,11 +49,14 @@ set -e
 
 (( gitleaks_status == 0 || gitleaks_status == 1 )) || fail "gitleaks exited with unexpected status $gitleaks_status."
 
-python3 - "$report_path" <<'PY'
+[[ -f "$report_path" ]] || fail "gitleaks exited with status $gitleaks_status but produced no report file at $report_path — treat this as a scan failure, not a clean pass."
+
+python3 - "$report_path" "$gitleaks_status" <<'PY'
 import json
 import sys
 
 path = sys.argv[1]
+gitleaks_status = int(sys.argv[2])
 try:
     with open(path) as handle:
         content = handle.read().strip()
@@ -61,6 +64,15 @@ except FileNotFoundError:
     content = ""
 
 findings = json.loads(content) if content else []
+
+if not findings and gitleaks_status == 1:
+    print(
+        "Secrets scan failed: gitleaks exited with status 1 (findings-or-error) "
+        "but the report contains no findings — treating this as a tool error, "
+        "not a clean pass.",
+        file=sys.stderr,
+    )
+    raise SystemExit(1)
 
 def mask(secret):
     if not secret:

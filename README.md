@@ -71,9 +71,14 @@ For pull-request analysis, also set `SONAR_PULL_REQUEST_KEY`, `SONAR_PULL_REQUES
 
 The `secrets-credential-scanning` skill wraps [gitleaks](https://github.com/gitleaks/gitleaks) and is wired as a required sub-skill of `codecommit-pr-merge` and `java-spring-harness`. Install gitleaks locally before those workflows run (`brew install gitleaks`, or download a release binary) — the skill does not install it for you.
 
-To allowlist a confirmed false positive (for example, a documented example key used only in a test fixture), add a narrowly-scoped entry to a repo-root `.gitleaks.toml` and get it reviewed like any other code change:
+The scanner script is written against gitleaks' `detect` and `protect` subcommands (v8.x). If a future major gitleaks version renames or removes those subcommands, the scan itself will fail to produce a report, and the script's report-file check turns that into a loud, visible scan failure rather than a silent false pass.
+
+To allowlist a confirmed false positive (for example, a documented example key used only in a test fixture), add a narrowly-scoped entry to a repo-root `.gitleaks.toml` and get it reviewed like any other code change. gitleaks *replaces* its embedded default ruleset with whatever config it loads from the source root, so the `[extend]` block below is required to keep gitleaks' built-in detection rules active — without it, a custom `.gitleaks.toml` silently disables all default rules and the scan would stop detecting anything:
 
 ```toml
+[extend]
+useDefault = true
+
 [allowlist]
 paths = [
   '''tests/fixtures/.*''',
