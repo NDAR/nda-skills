@@ -67,6 +67,24 @@ Set `SONAR_REQUIRED=true` in CI when SonarQube validation is mandatory. This mak
 
 For pull-request analysis, also set `SONAR_PULL_REQUEST_KEY`, `SONAR_PULL_REQUEST_BRANCH`, and `SONAR_PULL_REQUEST_BASE`. For branch analysis, set `SONAR_BRANCH_NAME` instead. The configured SonarQube Quality Gate must require new-code coverage of at least 80% and zero new bugs.
 
+## Secrets scanning (gitleaks)
+
+The `secrets-credential-scanning` skill wraps [gitleaks](https://github.com/gitleaks/gitleaks) and is wired as a required sub-skill of `codecommit-pr-merge` and `java-spring-harness`. Install gitleaks locally before those workflows run (`brew install gitleaks`, or download a release binary) — the skill does not install it for you.
+
+To allowlist a confirmed false positive (for example, a documented example key used only in a test fixture), add a narrowly-scoped entry to a repo-root `.gitleaks.toml` and get it reviewed like any other code change:
+
+```toml
+[allowlist]
+paths = [
+  '''tests/fixtures/.*''',
+]
+regexes = [
+  '''AKIAIOSFODNN7EXAMPLE''',
+]
+```
+
+Never widen an allowlist entry beyond the specific known-fake value or path it covers.
+
 ## Repository layout
 
 ```
