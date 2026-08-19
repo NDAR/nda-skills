@@ -148,13 +148,20 @@ grep -Fq -- '--redact' "$staged_repo/gitleaks.args"
 # 7. Allowlist round-trip against the REAL gitleaks binary (not the shim): a known
 #    dummy secret fails the scan, then adding it to .gitleaks.toml makes it pass.
 #    This block intentionally does NOT put the fake gitleaks shim on PATH.
+#    NOTE: this fixture deliberately does NOT use the AWS-documented example key
+#    (AKIAIOSFODNN7EXAMPLE, used elsewhere in this repo's docs) — gitleaks' own
+#    built-in default ruleset treats "EXAMPLE" as a stopword and never flags it,
+#    so it can't prove the "before" half of this round-trip. AKIAABCDEFGHIJKLMNOP
+#    is a sequential, obviously-synthetic value that still matches gitleaks' real
+#    aws-access-token regex (which requires a [A-Z2-7]{16} suffix — no 0/1/8/9,
+#    no lowercase), so it reliably triggers real detection.
 if ! command -v gitleaks >/dev/null 2>&1; then
   printf 'SKIP: gitleaks not installed, skipping allowlist round-trip test.\n'
 else
   allowlist_repo=$(make_repo allowlist)
   (
     cd "$allowlist_repo"
-    printf 'AKIAIOSFODNN7EXAMPLE\n' > secret.txt
+    printf 'aws_access_key_id = "AKIAABCDEFGHIJKLMNOP"\n' > secret.txt
     git add secret.txt
     git commit -qm 'add known dummy secret'
   )
@@ -178,7 +185,7 @@ else
 useDefault = true
 
 [allowlist]
-regexes = ['''AKIAIOSFODNN7EXAMPLE''']
+regexes = ['''AKIAABCDEFGHIJKLMNOP''']
 TOML
 
   set +e
