@@ -14,6 +14,7 @@ Use this workflow for CodeCommit PR operations where correctness depends on iden
 - Never delete the destination branch.
 - Never delete any branch until the PR is verified as merged.
 - Never merge if approval rules are unsatisfied; report the blocker and pause.
+- Never merge if `secrets-credential-scanning` reports a blocking, non-allowlisted finding for the PR's commit range.
 - Always use the current PR source commit in `merge-pull-request-by-squash`.
 - Always verify the exact source and destination before merge, and verify final state after branch deletion.
 - Use `nih_mgmt` if the user explicitly says to use it; otherwise discover profiles with `aws configure list-profiles` and test repository access.
@@ -52,6 +53,8 @@ git diff --check <destinationCommit>..<sourceCommit>
 ```
 
 Review changed files directly. For code-review requests, lead with findings ordered by severity. If no blocking issues are found, say so and include verification evidence.
+
+**REQUIRED SUB-SKILL:** Use `secrets-credential-scanning` with `SECRETS_SCAN_BASE=<destinationCommit>` and `SECRETS_SCAN_HEAD=<sourceCommit>` before recommending merge. A blocking, non-allowlisted finding pauses the merge until the human resolves it.
 
 Run the appropriate project verification command before recommending merge. Prefer the full test command when practical.
 

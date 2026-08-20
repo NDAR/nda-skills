@@ -1,0 +1,4 @@
+interface:
+  display_name: "Secrets & Credential Scanning"
+  short_description: "Scan a diff for leaked secrets before merge"
+  default_prompt: "Use $secrets-credential-scanning to scan the current change for committed secrets before merging or pushing."
