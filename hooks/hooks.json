@@ -1,0 +1,18 @@
+{
+  "description": "Block Codex Git commit and push commands until credential scanning passes.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${PLUGIN_ROOT}/hooks/scripts/pre-git-secrets-scan.sh\"",
+            "timeout": 120,
+            "statusMessage": "Scanning Git changes for secrets"
+          }
+        ]
+      }
+    ]
+  }
+}

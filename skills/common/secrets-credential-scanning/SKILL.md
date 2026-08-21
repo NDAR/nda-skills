@@ -29,7 +29,9 @@ Scan a commit range or staged changes for secrets before they reach a shared bra
 
 ## Non-Goals
 
-Do not install a git pre-commit hook into the target repository. This skill runs on demand — standalone, or as a required sub-skill of another workflow — not as an automatic git hook.
+Do not install a Git pre-commit hook into the target repository. The plugin instead bundles a Codex `PreToolUse` hook that, once the user trusts it, scans Codex-issued `git commit` and `git push` commands before they run. It does not apply to Git commands run outside Codex and is not a substitute for CI enforcement.
+
+This skill remains the manual and workflow-level interface: use it to scan a specific PR range, an explicitly staged change, or any change that was not initiated by the Codex Git-command hook.
 
 ## Reporting
 

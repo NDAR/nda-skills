@@ -73,6 +73,16 @@ The `secrets-credential-scanning` skill wraps [gitleaks](https://github.com/gitl
 
 The scanner script is written against gitleaks' `detect` and `protect` subcommands (v8.x). If a future major gitleaks version renames or removes those subcommands, the scan itself will fail to produce a report, and the script's report-file check turns that into a loud, visible scan failure rather than a silent false pass.
 
+### Codex lifecycle hook
+
+Version `0.11.0` bundles a Codex `PreToolUse` hook. After installing or upgrading the plugin, review and trust the hook with `/hooks`; Codex skips a new or changed plugin hook until it has been trusted. The hook runs before Codex issues a Bash `git commit` or `git push` command:
+
+- Before `git commit`, it scans staged changes with `gitleaks protect --staged`.
+- Before `git push`, it scans the current branch range using the scanner's established default-base resolution.
+- A finding, missing `gitleaks`, or scanner failure blocks that Codex Git command. The hook intentionally suppresses scanner output so it cannot pass a matched secret back into the model context.
+
+The hook covers Git commands issued by Codex only. It does not install a Git hook in target repositories, scan Git commands run outside Codex, or replace required CI/PR checks. Use `$secrets-credential-scanning` for manual scans and PR-range scans.
+
 To allowlist a confirmed false positive (for example, a documented example key used only in a test fixture), add a narrowly-scoped entry to a repo-root `.gitleaks.toml` and get it reviewed like any other code change. gitleaks *replaces* its embedded default ruleset with whatever config it loads from the source root, so the `[extend]` block below is required to keep gitleaks' built-in detection rules active — without it, a custom `.gitleaks.toml` silently disables all default rules and the scan would stop detecting anything:
 
 ```toml
