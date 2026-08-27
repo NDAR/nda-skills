@@ -62,6 +62,24 @@ nda-skills makes selected parts of that context reusable.
 
 ---
 
+# Sound familiar?
+
+- An agent commits code that doesn't match our Java conventions—because it never saw them.
+- A change almost merges with a leaked API key, because nothing scanned the diff.
+- The same review comment gets repeated sprint after sprint, because nothing carried the lesson forward.
+
+**None of this is a smarter-model problem. It's a context problem: the agent never had what it needed, when it needed it.**
+
+<!--
+Open with recognition, not theory—ask the room "has this happened to you?"
+before moving into why it happens. These are the exact failure modes
+nda-skills targets: conventions (java-spring-coding-standards), secrets
+(secrets-credential-scanning), and repeated review friction (the "team
+improves a skill" step in the developer loop, later in this deck).
+-->
+
+---
+
 # Outline
 
 1. Why context management is the real problem
@@ -124,37 +142,24 @@ second (sensors) creates feedback after the agent has acted.
 
 ---
 
-# Computational vs. inferential controls
+# Two vocabularies, one distinction
 
-| Control type | Strength | Good examples |
-| --- | --- | --- |
-| **Computational** | Fast, deterministic, repeatable | Compiler, tests, linters, coverage, structural rules |
-| **Inferential** | Semantic judgment and richer interpretation | Focused AI review, design review, periodic drift analysis |
+| Control type | Mechanism | Strength | Current NDA example |
+| --- | --- | --- | --- |
+| **Computational** | **Hooks** — a deterministic command at a lifecycle event | Fast, repeatable, no judgment required | Trusted `PreToolUse` gate before Codex runs a `git commit` or `git push` command |
+| **Inferential** | **Skills** — focused context that coordinates a workflow | Semantic judgment, richer interpretation | Guidance for when and how to scan and remediate credentials |
 
-Use fast computational controls during the coding loop. Use inferential controls where the question needs judgment—and treat their output as input to review, not proof.
+Use fast computational controls (hooks) during the coding loop. Use inferential controls (skills) where the question needs judgment—and treat their output as input to review, not proof.
 
-<!--
-The important contrast is not "old tools versus AI." Both are harness
-controls. Computational feedback is cheap enough to shift left; inferential
-feedback helps with meaning and trade-offs, but is slower and probabilistic.
--->
-
----
-
-# Skills guide the agent; hooks guard transitions
-
-| | Skills | Hooks |
-| --- | --- | --- |
-| **Primary role** | Load focused context and coordinate a workflow | Run a deterministic command at a lifecycle event |
-| **Best for** | Standards, TDD, debugging, review, and task-specific judgment | Fast checks before or after an action |
-| **Current NDA example** | Explain when and how to scan and remediate credentials | Trusted `PreToolUse` gate before Codex runs `git commit` or `git push` |
-
-`secrets-credential-scanning` is deliberately **both**: the skill supplies the workflow and remediation context; the hook provides a repeatable computational guardrail.
+`secrets-credential-scanning` is deliberately **both**: the skill supplies the workflow and remediation context; the hook is its computational backstop. It fails **closed**—if `gitleaks` isn't installed, the hook blocks the commit rather than skipping the scan.
 
 <!--
-Do not present hooks as a replacement for skills. A hook is the right shape
-for deterministic controls at a known event; a skill is the right shape for
-reasoning about the task, interpreting feedback, and deciding what to do next.
+Computational controls and hooks are the same idea; inferential controls and
+skills are the same idea. The important contrast is not "old tools versus
+AI"—both are harness controls. Hook/computational feedback is cheap enough to
+shift left; skill/inferential feedback helps with meaning and trade-offs, but
+is slower and probabilistic. Do not present hooks as a replacement for
+skills, or vice versa.
 -->
 
 ---
@@ -168,10 +173,12 @@ reasoning about the task, interpreting feedback, and deciding what to do next.
 **Codex provides the inner harness. We add an outer harness tailored to NDA's development environment.**
 
 <!--
-The article labels the outer layer “user harness.” In this talk, that is the
-team-level outer harness we create for NDA. Emphasize that nda-skills augments
-Codex; it does not replace the agent's own system instructions, tooling,
-retrieval, or orchestration.
+This zooms into the "CLI harness" row of the prompt→context→harness table
+from earlier: Codex is the inner harness, and this diagram shows the outer,
+team-maintained layer we add on top of it. The article labels the outer layer
+"user harness." In this talk, that is the team-level outer harness we create
+for NDA. Emphasize that nda-skills augments Codex; it does not replace the
+agent's own system instructions, tooling, retrieval, or orchestration.
 -->
 
 ---
@@ -192,7 +199,7 @@ Its skills make disciplined practices available at the point a coding task needs
 
 # nda-skills: the NDA specialization layer
 
-`nda-skills` builds on that pattern with the context that generic process skills cannot know:
+This is the outer harness from the previous diagram, made concrete. `nda-skills` builds on that pattern with the context that generic process skills cannot know:
 
 | Today | Growing from development evidence |
 | --- | --- |
@@ -249,6 +256,9 @@ skills/
 Use the tree as a map: common is cross-stack; Java/Spring Boot exists today;
 Angular/Electron and Python are the planned next language areas. The folders
 organize the skills, while each skill's description controls its activation.
+Note: the angular-electron/ and python/ folders are aspirational—they do not
+exist in the repo yet and will be created when that work starts. If asked,
+be clear "ls skills/" today only shows common/ and java-springboot/.
 -->
 
 ---
@@ -282,30 +292,45 @@ a replacement for each repository's own rules.
 
 ---
 
-# Skills in a Java/Spring delivery workflow
+# Java/Spring delivery workflow (1/2): start → build → iterate
 
 | Stage | Skills and controls that enter here |
 | --- | --- |
 | **Start the change** | `java-spring-harness` coordinates; it invokes `java-spring-coding-standards` first. Repository rules remain authoritative. |
 | **Build one small behavior** | `pair-programming-tdd` drives RED → GREEN → refactor. Applicable Superpowers skills support TDD, debugging, and code review. |
 | **Iterate with feedback** | Run the repository's fast, relevant checks while the change is small. |
-| **Prepare completion** | Stage changes with `git add -A`; `secrets-credential-scanning` directs a staged gitleaks scan. A trusted `PreToolUse` hook independently blocks Codex-issued `git commit` or `git push` unless its scan passes. |
-| **Verify and report** | `java-spring-verification`: Maven, at least 80% JaCoCo line coverage, and optional SonarQube Quality Gate checks. |
 
-**The harness supplies the right context and feedback at each stage—not every instruction at once.**
+**The harness supplies the right context at each stage—not every instruction at once.**
 
 <!--
-For Java/Spring work, java-spring-harness is the coordinator. It requires the
-coding-standards skill first, pair-programming TDD during implementation, a
-staged secrets scan before verification, and fresh verification evidence at
-completion. The trusted hook adds a final computational gate before Codex
-commits or pushes; it does not replace CI or PR-range scanning. gitleaks must
-already be installed locally.
+java-spring-harness is the coordinator for the whole workflow (both halves of
+this table). It requires the coding-standards skill first, then
+pair-programming TDD during implementation, running fast repository checks
+while the change is still small enough to fix cheaply.
 -->
 
 ---
 
-# If the change becomes a CodeCommit PR
+# Java/Spring delivery workflow (2/2): prepare → verify
+
+| Stage | Skills and controls that enter here |
+| --- | --- |
+| **Prepare completion** | Stage changes with `git add -A`; `secrets-credential-scanning` directs a staged gitleaks scan. A trusted `PreToolUse` hook independently blocks Codex-issued `git commit` or `git push` unless its scan passes. |
+| **Verify and report** | `java-spring-verification`: Maven, at least 80% JaCoCo line coverage, and optional SonarQube Quality Gate checks. |
+
+**Feedback arrives before the change ships—not after review finds it.**
+
+<!--
+A staged secrets scan runs before completion is reported. The trusted hook
+adds an independent, final computational gate before Codex commits or
+pushes—it does not replace CI or PR-range scanning, and it fails closed if
+gitleaks isn't installed locally. Verification requires fresh Maven/JaCoCo
+evidence (and Sonar, where configured) before the change is called done.
+-->
+
+---
+
+# If the change becomes a CodeCommit PR *(only if your team uses CodeCommit)*
 
 `codecommit-pr-merge` guides the merge workflow after implementation is ready:
 
@@ -326,6 +351,23 @@ verification.
 -->
 
 [Maintainability sensors for coding agents](https://martinfowler.com/articles/sensors-for-coding-agents.html)
+
+---
+
+# See it work
+
+*(Live demo or short recording: stage a fake credential and watch the `PreToolUse` hook deny the commit, or run `java-spring-verification` against a change with insufficient coverage and watch the agent react.)*
+
+**Presenter note: replace this slide with an actual demo or recording before presenting.**
+
+<!--
+Pick one demo that matches what this room cares about most. Two options that
+work directly against this repo: (1) attempt a git commit with a fake secret
+staged and show the PreToolUse hook deny it with a redacted reason; (2) run
+java-spring-verification against a change below 80% coverage and show the
+agent respond to the failure. Keep it under 90 seconds—the point is "the loop
+is real," not a full walkthrough of either skill.
+-->
 
 ---
 
@@ -370,7 +412,7 @@ This is **harness engineering as an ongoing practice**, not a one-time prompt te
 
 **A useful skill turns one team's learned context into a reusable advantage for everyone.**
 
-Bring back the rough edges: **Where did the agent lack context? What feedback arrived too late? What should become shared team knowledge?**
+Bring back the rough edges—**where did the agent lack context? what feedback arrived too late?**—and open a PR into `main` on [`NDAR/nda-skills`](https://github.com/NDAR/nda-skills). Merge = live for the team on the next `marketplace upgrade`.
 
 ---
 
