@@ -1,0 +1,8 @@
+[extend]
+useDefault = true
+
+[allowlist]
+regexTarget = "line"
+regexes = [
+  '''^\s*- curl --location --user "\$\{SONAR_LOGIN\}:" "\$\{SONAR_URL\}/api/qualitygates/project_status\?projectKey=\$\{SONAR_PROJECT_KEY\}&branch=\$BRANCH_NAME" > result\.json$''',
+]
