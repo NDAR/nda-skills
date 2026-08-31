@@ -72,7 +72,21 @@ aws codecommit get-branch --repository-name <repo> --branch-name <destination-br
 
 Paginate through all open PR identifiers and inspect candidates with `get-pull-request`. Compare each candidate's `sourceReference` and `destinationReference` with `refs/heads/<source-branch>` and `refs/heads/<destination-branch>`. If an existing open PR has the same pair, stop and report its identifier; do not create a duplicate.
 
-Run the required secrets scan using the current remote destination and source commits. If it passes, create the PR with the exact derived title and fully-qualified CodeCommit references:
+Immediately before the secrets scan, repeat the CodeCommit source/destination revalidation above and record the resulting `<source-commit>` and `<destination-commit>`. Fetch those two refs from the selected CodeCommit remote into remote-tracking refs only; never fetch into, check out, or update a local branch:
+
+```bash
+aws codecommit get-branch --repository-name <repo> --branch-name <source-branch> --profile <profile> --region <region> --query 'branch.commitId' --output text
+aws codecommit get-branch --repository-name <repo> --branch-name <destination-branch> --profile <profile> --region <region> --query 'branch.commitId' --output text
+git fetch --no-tags <codecommit-remote> \
+  +refs/heads/<source-branch>:refs/remotes/<codecommit-remote>/<source-branch> \
+  +refs/heads/<destination-branch>:refs/remotes/<codecommit-remote>/<destination-branch>
+git rev-parse refs/remotes/<codecommit-remote>/<source-branch>
+git rev-parse refs/remotes/<codecommit-remote>/<destination-branch>
+```
+
+Verify that the two fetched IDs exactly equal the `<source-commit>` and `<destination-commit>` recorded by that immediately preceding CodeCommit revalidation. If either differs, stop without scanning or creating a PR, report the mismatch, and require confirmation again; do not substitute a local branch or commit ID.
+
+Run the required secrets scan using only these verified fetched CodeCommit commit IDs. If it passes, create the PR with the exact derived title and fully-qualified CodeCommit references:
 
 ```bash
 SECRETS_SCAN_BASE=<destination-commit> SECRETS_SCAN_HEAD=<source-commit> \
@@ -81,7 +95,7 @@ SECRETS_SCAN_BASE=<destination-commit> SECRETS_SCAN_HEAD=<source-commit> \
 
 ```bash
 aws codecommit create-pull-request \
-  --title '<JIRA-KEY> <Jira Summary>' \
+  --title '<derived-title>' \
   --targets repositoryName=<repo>,sourceReference=refs/heads/<source-branch>,destinationReference=refs/heads/<destination-branch> \
   --profile <profile> \
   --region <region> \
@@ -89,8 +103,8 @@ aws codecommit create-pull-request \
   --output json
 ```
 
-Use the release-source title form (`<JIRA-KEY> <Jira Summary> - merge to main`) when the destination is `main`.
+Here, `<derived-title>` is `<JIRA-KEY> <Jira Summary> - merge to main` when the destination is `main`; otherwise it is `<JIRA-KEY> <Jira Summary>`.
 
 ## Report
 
-Report the repository, AWS profile/region, source, destination, derived title, created release branch (when applicable), and PR identifier/URL. For any blocker, report the exact reason, whether any release branch was already created, and that no later mutation was performed.
+Report the repository, AWS profile/region, source, destination, derived title, created release branch (when applicable), and the CodeCommit PR identifier returned by `create-pull-request`. For any blocker, report the exact reason, whether any release branch was already created, and that no later mutation was performed.
