@@ -15,7 +15,13 @@ Coordinate the shared Java/Spring guides and computational checks. Keep reposito
    - `superpowers:test-driven-development` before implementing a feature or bug fix.
    - `superpowers:systematic-debugging` before changing code to address a failure or unexpected behavior.
    - `superpowers:requesting-code-review` after a material implementation change.
-4. Run the repository's fast, relevant checks while iterating. Follow service-specific commands where supplied.
+4. Run the bundled fast-check script while iterating:
+
+   ```bash
+   /path/to/java-spring-harness/scripts/run-fast-checks.sh
+   ```
+
+   It formats modified Java files, runs the `LayeredArchitectureTest` sensor together with touched tests in a single Maven invocation, and checks diff whitespace. Set `FORMAT_JAVA_MODIFIED_CMD`, `TEST_TOUCHED_CMD`, `MAVEN_CMD`, `ARCHITECTURE_TEST_CLASS`, or `GIT_DIFF_CHECK_CMD` to substitute service-specific commands.
 5. **REQUIRED SUB-SKILL:** Stage the change (`git add -A`) and use `secrets-credential-scanning` with `SECRETS_SCAN_STAGED=true` before invoking `java-spring-verification`. A blocking, non-allowlisted finding must be resolved — credential rotation or a reviewed `.gitleaks.toml` entry — before continuing.
 6. Before reporting completion, explicitly invoke `java-spring-verification`, then run its verification script from the target service root.
 7. Report only fresh evidence: commands run, Maven result, JaCoCo coverage, SonarQube Quality Gate/new-code coverage/new-bug results when configured, and every unavailable or failing required check.
