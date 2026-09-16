@@ -66,7 +66,7 @@ nda-skills makes selected parts of that context reusable.
 
 - An agent commits code that doesn't match our Java conventions—because it never saw them.
 - A change almost merges with a leaked API key, because nothing scanned the diff.
-- The same review comment gets repeated sprint after sprint, because nothing carried the lesson forward.
+- The agent keeps making the same style mistake that you corrected every time, because no memory was kept forward.
 
 **None of this is a smarter-model problem. It's a context problem: the agent never had what it needed, when it needed it.**
 
@@ -143,6 +143,8 @@ second (sensors) creates feedback after the agent has acted.
 ---
 
 # Two vocabularies, one distinction
+
+*Different axis from guides/sensors: that was about* when *a control fires (before vs. after the agent acts). This is about* how *it decides (fixed rule vs. judgment). A hook is typically a sensor; a skill can act as either.*
 
 | Control type | Mechanism | Strength | Current NDA example |
 | --- | --- | --- | --- |
@@ -228,6 +230,7 @@ and further sensors as team experience reveals repeatable needs.
 
 - Skills are selected from their descriptions when the task matches.
 - They add focused context at the time it is useful—rather than putting every rule in every prompt.
+- **Installing more skills doesn't bloat every session.** A skill's full instructions only enter context when its description matches the task—unmatched skills cost nothing.
 - They coordinate work with existing engineering controls; they do not replace them.
 
 **Current focus:** shared workflow and security controls, plus Java/Spring guidance and verification.
@@ -242,10 +245,10 @@ hooks/
 └── scripts/             Deterministic hook commands
 skills/
 ├── common/             Cross-stack workflows and credential scanning
-├── java-springboot/    Current Java and Spring Boot guidance
-├── angular-electron/   Planned—not yet shipped—Angular and Electron guidance
-└── python/             Planned—not yet shipped—Python guidance
+└── java-springboot/    Current Java and Spring Boot guidance
 ```
+
+**Roadmap (not in the repo yet):** Angular/Electron and Python skill folders, added when that work starts.
 
 - A stack folder groups related skills; each skill is a folder containing a `SKILL.md` with a trigger description and instructions.
 - `hooks/` contains deterministic lifecycle controls; it is separate from the context and workflow instructions under `skills/`.
@@ -253,41 +256,54 @@ skills/
 - Grouping keeps the repository maintainable; **the skill description determines when Codex applies it.**
 
 <!--
-Use the tree as a map: common is cross-stack; Java/Spring Boot exists today;
-Angular/Electron and Python are the planned next language areas. The folders
-organize the skills, while each skill's description controls its activation.
-Note: the angular-electron/ and python/ folders are aspirational—they do not
-exist in the repo yet and will be created when that work starts. If asked,
-be clear "ls skills/" today only shows common/ and java-springboot/.
+Use the tree as a map: common is cross-stack; Java/Spring Boot exists today.
+The tree shows exactly what `ls skills/` returns right now — Angular/
+Electron and Python are called out separately as roadmap so nobody walks
+away thinking those folders exist yet. The folders organize the skills,
+while each skill's description controls its activation.
 -->
 
 ---
 
-# Install once; upgrade when the harness improves
+# Getting started
 
-```zsh
-codex plugin marketplace add https://github.com/NDAR/nda-skills.git --ref main
-codex plugin add nda-skills@nda-skills
-```
+**Four steps, about five minutes.**
 
-Start a new Codex session, then check installation:
+0. **Check prerequisites** — working HTTPS git auth, and `gitleaks` on your PATH (`brew install gitleaks`) for the credential hook:
 
-```zsh
-codex plugin list
-```
+   ```zsh
+   git ls-remote https://github.com/NDAR/nda-skills.git
+   ```
 
-Pick up published improvements with:
+   Lists refs without prompting? You're set. Prompts or fails? Fix HTTPS git auth first (PAT in your credential helper, or `gh` configured).
 
-```zsh
-codex plugin marketplace upgrade
-```
+1. **Install:**
 
-When an upgrade includes hooks, open `/hooks`, review the `nda-skills` definition, and **trust** it. The credential hook also requires `gitleaks` on your local PATH.
+   ```zsh
+   codex plugin marketplace add https://github.com/NDAR/nda-skills.git --ref main
+   codex plugin add nda-skills@nda-skills
+   ```
+
+2. **Restart Codex, then verify:**
+
+   ```zsh
+   codex plugin list
+   ```
+
+   Look for `nda-skills@nda-skills` — `installed, enabled`.
+
+3. **Trust the hook:** open `/hooks`, review the `nda-skills` definition, and trust it. Skills work without this step; the commit/push credential gate does not.
+
+**Later:** `codex plugin marketplace upgrade` pulls published improvements — no reinstall needed.
 
 <!--
-The marketplace lets the team ship refinements once and lets developers pull
-them with a single upgrade command. This is the distribution mechanism, not
-a replacement for each repository's own rules.
+This is the slide developers will screenshot — say the commands out loud and
+pause here, since this is the point where people actually pull out a laptop.
+The prerequisite check catches the most common install failure (broken HTTPS
+git auth) before it derails a live follow-along. The marketplace lets the
+team ship refinements once and lets developers pull them with a single
+upgrade command; this is the distribution mechanism, not a replacement for
+each repository's own rules.
 -->
 
 ---
@@ -332,22 +348,27 @@ evidence (and Sonar, where configured) before the change is called done.
 
 # If the change becomes a CodeCommit PR *(only if your team uses CodeCommit)*
 
-`codecommit-pr-merge` guides the merge workflow after implementation is ready:
+Two skills, sequenced around the PR's actual lifecycle:
+
+**`codecommit-pr-create`** opens the PR once implementation is verified — resolves the Jira ticket and local branch, derives the destination branch and title from the Jira key, scans the `destination→source` range with `secrets-credential-scanning`, then creates the PR. Confirms with you before any mutation.
+
+**`codecommit-pr-merge`** guides the merge later, after review:
 
 1. **Find and inspect the right PR** — confirm repository, source/destination branches, commits, and approvals.
-2. **Review the diff** — inspect the change and its affected files.
-3. **Scan the PR range** — `secrets-credential-scanning` checks `destinationCommit..sourceCommit`; a non-allowlisted finding blocks the merge. This is separate from the local pre-Git hook.
-4. **Verify merge readiness** — run the project's appropriate verification command and confirm approval rules are satisfied.
-5. **Merge safely** — squash merge using the current source commit.
-6. **Verify, then clean up** — confirm the PR merged; delete **only** the verified source branch.
+2. **Review the diff.**
+3. **Re-scan the PR range** — `secrets-credential-scanning` checks `destinationCommit..sourceCommit` again, independently of the create-time scan; a non-allowlisted finding blocks the merge.
+4. **Verify merge readiness** — run the project's verification command and confirm approvals are satisfied.
+5. **Merge safely, then clean up** — squash merge using the current source commit; delete **only** the verified source branch.
 
 **The destination branch is never deleted.**
 
 <!--
-This is an optional workflow. It is only relevant when the user asks to
-review, merge, or clean up an AWS CodeCommit pull request. Emphasize the
-sequence: scan before merge, and branch deletion only after successful merge
-verification.
+Two separate skills: codecommit-pr-create opens the PR (often right after
+java-spring-verification passes), codecommit-pr-merge closes it out later,
+typically in a separate request or session. Both are optional — only
+relevant for teams using AWS CodeCommit. Emphasize there are two
+independent secrets scans (create-time and merge-time), and branch deletion
+happens only after a verified merge.
 -->
 
 [Maintainability sensors for coding agents](https://martinfowler.com/articles/sensors-for-coding-agents.html)
@@ -356,17 +377,31 @@ verification.
 
 # See it work
 
-*(Live demo or short recording: stage a fake credential and watch the `PreToolUse` hook deny the commit, or run `java-spring-verification` against a change with insufficient coverage and watch the agent react.)*
+**Demo (~60–90 seconds): a fake secret gets caught before it ships.**
 
-**Presenter note: replace this slide with an actual demo or recording before presenting.**
+```bash
+echo 'aws_key = "AKIAIOSFODNN7EXAMPLE"' >> demo.txt
+git add demo.txt
+# Ask Codex to commit — the PreToolUse hook scans staged changes first
+```
+
+Codex's `git commit` is denied, with a redacted reason, before the secret ever reaches git history. Clean up `demo.txt` afterward.
+
+**Backup demo (no live Codex session needed):** run the scanner directly —
+
+```bash
+skills/common/secrets-credential-scanning/scripts/scan-secrets.sh
+```
+
+**If live demo isn't possible:** narrate it from this slide — stage a fake key, the hook masks and blocks it, nothing sensitive reaches chat history or git log.
 
 <!--
-Pick one demo that matches what this room cares about most. Two options that
-work directly against this repo: (1) attempt a git commit with a fake secret
-staged and show the PreToolUse hook deny it with a redacted reason; (2) run
-java-spring-verification against a change below 80% coverage and show the
-agent respond to the failure. Keep it under 90 seconds—the point is "the loop
-is real," not a full walkthrough of either skill.
+This demo needs no Java service and takes under a minute — a safe default
+for a mixed-stack room. If a Java service is on hand and coverage is more
+relevant to this audience, swap in: run java-spring-verification against a
+change below 80% coverage and show the agent respond to the failure. Either
+way, the point is "the loop is real," not a full walkthrough of either
+skill. Remove demo.txt and unstage before moving on so the repo stays clean.
 -->
 
 ---
@@ -391,6 +426,52 @@ This is **harness engineering as an ongoing practice**, not a one-time prompt te
 
 ---
 
+# Worked example: "complete this Jira story"
+
+For a Java/Spring service, one request threads through most of the repository:
+
+1. **`java-spring-harness`** matches the task and coordinates everything below.
+2. → **`java-spring-coding-standards`**, invoked first, before any code changes.
+3. → **`pair-programming-tdd`**, one slice at a time — RED → GREEN → refactor, human approval between slices. Applicable Superpowers skills (TDD, debugging, code review) apply inside each slice.
+4. → fast-check script runs while iterating (format, architecture sensor, touched tests).
+5. → **`secrets-credential-scanning`** (staged scan) before verification.
+6. → **`java-spring-verification`** — Maven, ≥80% JaCoCo, Sonar Quality Gate if configured.
+7. → **`codecommit-pr-create`** — matches "PR for a Jira ticket," opens the PR, with its own destination→source secrets scan.
+8. *(Later, separate request)* → **`codecommit-pr-merge`** — re-scans the PR range independently, then merges.
+
+**Throughout:** the `PreToolUse` hook intercepts every Codex-issued `git commit`/`git push`, regardless of which skill is driving at the time — it isn't matched by description like a skill is.
+
+**A different stack today means a much shorter list:** only `pair-programming-tdd`, `secrets-credential-scanning`, and the hook apply outside Java/Spring — no coding-standards, harness, or verification skill exists yet for that repository.
+
+<!--
+This is the abstract loop from the previous slide, made concrete with real
+skill names and ordering — use it to ground the whole talk in one example
+the room can follow start to finish. The stack caveat matters: don't let the
+room walk away thinking every skill named here fires for every language.
+-->
+
+---
+
+# When the harness gets in your way
+
+Guardrails will occasionally be wrong. Know the escape hatch before you need it.
+
+- **Hook blocks a legitimate commit (false-positive secret):** confirm with a human it isn't real, then add a narrowly-scoped entry to a repo-root `.gitleaks.toml`—exact path or exact string, never a blanket rule—and get it reviewed like any other code change.
+- **A skill's guidance doesn't fit this repository:** repository instructions and CI configuration are authoritative over a skill's default guidance, except where the task explicitly needs stricter checks.
+- **SonarQube isn't configured for this service:** verification still runs Maven and JaCoCo; Sonar checks are skipped rather than blocking, unless `SONAR_REQUIRED=true` is set.
+- **A skill fires when it shouldn't, or never fires when it should:** that's feedback for us, not a bug to route around—see the closing section for how to change it.
+
+**Nothing here is unappealable. The point is judgment stays with the reviewer, not the tool.**
+
+<!--
+This slide exists because the first question from an experienced developer
+in the room will be "what happens when this is wrong." Have the
+.gitleaks.toml example from the secrets-credential-scanning skill ready if
+asked for more detail.
+-->
+
+---
+
 # What nda-skills does _not_ automate away
 
 - Clear product intent and acceptance criteria
@@ -399,20 +480,6 @@ This is **harness engineering as an ongoing practice**, not a one-time prompt te
 - Human code review and ownership
 
 > A good harness directs human attention to the decisions that matter most; it does not eliminate it.
-
----
-
-# Start small; improve from evidence
-
-1. Install the plugin and try a relevant workflow on a real task.
-2. Notice repeated agent or review friction.
-3. Decide whether the missing control is a **guide**, a **sensor**, or both.
-4. Improve the skill, hook, or repository control; publish the change through the marketplace.
-5. Upgrade and share what changed.
-
-**A useful skill turns one team's learned context into a reusable advantage for everyone.**
-
-Bring back the rough edges—**where did the agent lack context? what feedback arrived too late?**—and open a PR into `main` on [`NDAR/nda-skills`](https://github.com/NDAR/nda-skills). Merge = live for the team on the next `marketplace upgrade`.
 
 ---
 
@@ -433,3 +500,17 @@ guides/sensors, computational/inferential controls, and shifting fast
 feedback left. The repo files are the source of truth for nda-skills scope
 and commands.
 -->
+
+---
+
+# Start small; improve from evidence
+
+1. Install the plugin and try a relevant workflow on a real task.
+2. Notice repeated agent or review friction.
+3. Decide whether the missing control is a **guide**, a **sensor**, or both.
+4. Improve the skill, hook, or repository control; publish the change through the marketplace.
+5. Upgrade and share what changed.
+
+**A useful skill turns one team's learned context into a reusable advantage for everyone.**
+
+Bring back the rough edges—**where did the agent lack context? what feedback arrived too late?**—and open a PR into `main` on [`NDAR/nda-skills`](https://github.com/NDAR/nda-skills). Merge = live for the team on the next `marketplace upgrade`.
