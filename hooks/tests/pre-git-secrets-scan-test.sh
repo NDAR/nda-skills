@@ -27,7 +27,8 @@ chmod +x "$scanner"
 
 run_hook() {
   local command=$1
-  printf '{"cwd":"%s","tool_input":{"command":"%s"}}\n' "$repo/nested" "$command" |
+  local input_field=${2:-command}
+  printf '{"cwd":"%s","tool_input":{"%s":"%s"}}\n' "$repo/nested" "$input_field" "$command" |
     PLUGIN_ROOT="$plugin_root" \
     FAKE_SCAN_LOG="$fixture/scans.log" \
     "$wrapper"
@@ -40,6 +41,20 @@ if ! clean_output=$(FAKE_SCAN_EXIT=0 run_hook 'git commit -m message'); then
 fi
 [[ -z "$clean_output" ]]
 grep -Fxq 'true' "$fixture/scans.log"
+
+# The nested Codex command runner supplies its shell command as `cmd`, not
+# the Bash tool's `command` field. It must receive the same secret gate.
+scan_count_before=$(wc -l < "$fixture/scans.log")
+if ! nested_runner_output=$(FAKE_SCAN_EXIT=0 run_hook 'git commit -m message' cmd); then
+  printf 'Expected a nested command-runner Git commit scan to pass.\n' >&2
+  exit 1
+fi
+[[ -z "$nested_runner_output" ]]
+scan_count_after=$(wc -l < "$fixture/scans.log")
+if (( scan_count_after != scan_count_before + 1 )); then
+  printf 'Expected a nested command-runner Git commit to invoke the scanner.\n' >&2
+  exit 1
+fi
 
 # A finding blocks the Git command and never forwards scanner output.
 set +e
@@ -112,7 +127,7 @@ assert manifest["hooks"] == "./hooks/hooks.json"
 registrations = config["hooks"]["PreToolUse"]
 assert len(registrations) == 1
 registration = registrations[0]
-assert registration["matcher"] == "^(?:Bash|exec)$"
+assert registration["matcher"] == "^(?:Bash|exec|exec_command)$"
 handler = next(
     handler
     for handler in registration["hooks"]

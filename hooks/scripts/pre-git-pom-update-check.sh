@@ -29,7 +29,12 @@ import sys
 try:
     payload = json.load(sys.stdin)
     cwd = payload["cwd"]
-    command = payload["tool_input"]["command"]
+    tool_input = payload["tool_input"]
+    if not isinstance(tool_input, dict):
+        raise TypeError
+    command = tool_input.get("command")
+    if command is None:
+        command = tool_input.get("cmd")
 except (KeyError, TypeError, json.JSONDecodeError):
     raise SystemExit(0)
 

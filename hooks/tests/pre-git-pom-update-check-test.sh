@@ -32,7 +32,7 @@ CHECKER
 chmod +x "$checker"
 
 set +e
-output=$(printf '{"cwd":"%s","tool_input":{"command":"git commit -m message"}}\n' "$repo/nested" |
+output=$(printf '{"cwd":"%s","tool_input":{"cmd":"git commit -m message"}}\n' "$repo/nested" |
   PLUGIN_ROOT="$plugin_root" "$wrapper")
 status=$?
 set -e
@@ -160,7 +160,7 @@ assert manifest["hooks"] == "./hooks/hooks.json"
 registrations = config["hooks"]["PreToolUse"]
 assert len(registrations) == 1
 registration = registrations[0]
-assert registration["matcher"] == "^(?:Bash|exec)$"
+assert registration["matcher"] == "^(?:Bash|exec|exec_command)$"
 handlers = registration["hooks"]
 assert {handler["command"] for handler in handlers} == {
     '"${PLUGIN_ROOT}/hooks/scripts/pre-git-secrets-scan.sh"',
