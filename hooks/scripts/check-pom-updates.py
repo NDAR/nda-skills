@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import subprocess
 import sys
@@ -120,6 +121,32 @@ def discover_explicit_plugins(pom_path: Path) -> list[VersionedArtifact]:
     return plugins
 
 
+def discover_reactor_poms(project: Path) -> list[Path]:
+    """Return the root POM and every POM declared through ``<modules>``."""
+    discovered: list[Path] = []
+    visited: set[Path] = set()
+
+    def visit(pom_path: Path) -> None:
+        resolved_path = pom_path.resolve()
+        if resolved_path in visited:
+            return
+        if not resolved_path.is_file():
+            raise FileNotFoundError(f"reactor module POM not found: {resolved_path}")
+        visited.add(resolved_path)
+        root = _parse_maven_pom(resolved_path)
+        namespace = {"m": MAVEN_NAMESPACE}
+        discovered.append(resolved_path)
+        for module in root.findall("m:modules/m:module", namespace):
+            module_path = _text(module)
+            if not module_path:
+                raise ValueError(f"reactor module path is empty in {resolved_path}")
+            module_candidate = resolved_path.parent / module_path
+            visit(module_candidate / "pom.xml" if module_candidate.is_dir() else module_candidate)
+
+    visit(project / "pom.xml")
+    return discovered
+
+
 def render_inventory(project: Path) -> str:
     pom_path = project / "pom.xml"
     parent = discover_explicit_parent(pom_path)
@@ -187,7 +214,7 @@ def _is_newer(candidate: str, current: str) -> bool:
 
 
 def _run_update_check(
-    project: Path,
+    pom_path: Path,
     artifacts: Sequence[VersionedArtifact],
     maven_command: str,
     goal: str,
@@ -203,6 +230,8 @@ def _run_update_check(
         output_file = Path(directory, "updates.txt")
         command = [
             maven_command,
+            "-f",
+            str(pom_path),
             "-N",
             "-B",
             "-ntp",
@@ -215,7 +244,7 @@ def _run_update_check(
             "-Dversions.outputLineWidth=10000",
             *extra_arguments,
         ]
-        result = subprocess.run(command, cwd=project, check=False, capture_output=True, text=True)
+        result = subprocess.run(command, cwd=pom_path.parent, check=False, capture_output=True, text=True)
         if result.returncode != 0:
             detail = result.stderr.strip() or result.stdout.strip() or "Maven update check failed"
             return UpdateCheck({}, re.sub(r"\s+", " ", detail))
@@ -263,7 +292,7 @@ def _run_update_check(
 
 
 def find_dependency_updates(
-    project: Path,
+    pom_path: Path,
     dependencies: Sequence[VersionedArtifact],
     maven_command: str,
 ) -> UpdateCheck:
@@ -276,7 +305,7 @@ def find_dependency_updates(
         "-DshowVersionless=false",
     ]
     return _run_update_check(
-        project,
+        pom_path,
         dependencies,
         maven_command,
         "display-dependency-updates",
@@ -286,14 +315,14 @@ def find_dependency_updates(
     )
 
 
-def render_dependency_report(project: Path, maven_command: str) -> RenderedReport:
-    pom_path = project / "pom.xml"
+def render_pom_dependency_report(pom_path: Path, maven_command: str) -> RenderedReport:
+    project = pom_path.parent
     parent = discover_explicit_parent(pom_path)
     dependencies = discover_explicit_dependencies(pom_path)
     plugins = discover_explicit_plugins(pom_path)
-    dependency_check = find_dependency_updates(project, dependencies, maven_command)
+    dependency_check = find_dependency_updates(pom_path, dependencies, maven_command)
     parent_check = _run_update_check(
-        project,
+        pom_path,
         [parent] if parent else [],
         maven_command,
         "display-parent-updates",
@@ -301,7 +330,7 @@ def render_dependency_report(project: Path, maven_command: str) -> RenderedRepor
         "The parent project is the latest version:",
     )
     plugin_check = _run_update_check(
-        project,
+        pom_path,
         plugins,
         maven_command,
         "display-plugin-updates",
@@ -378,6 +407,31 @@ def render_dependency_report(project: Path, maven_command: str) -> RenderedRepor
         dependency_check.updates or parent_check.updates or plugin_check.updates
     )
     return RenderedReport("\n".join(lines) + "\n", not unresolved, has_updates)
+
+
+def render_dependency_report(project: Path, maven_command: str) -> RenderedReport:
+    pom_paths = discover_reactor_poms(project)
+    reports = [render_pom_dependency_report(pom_path, maven_command) for pom_path in pom_paths]
+    if len(reports) == 1:
+        return reports[0]
+
+    lines = [
+        "# Maven Version Update Report",
+        "",
+        f"Project: `{project}`",
+        "",
+        "Scope: direct declarations in the root POM and declared reactor module POMs; profile, dependency-management, and plugin-management entries are excluded.",
+    ]
+    for pom_path, report in zip(pom_paths, reports):
+        relative_path = os.path.relpath(pom_path, project)
+        sections = report.text[report.text.index("## Parent") :].replace("## ", "### ")
+        lines.extend(["", f"## POM: `{relative_path}`", "", sections.rstrip()])
+
+    return RenderedReport(
+        "\n".join(lines) + "\n",
+        all(report.complete for report in reports),
+        any(report.outdated for report in reports),
+    )
 
 
 def main() -> int:

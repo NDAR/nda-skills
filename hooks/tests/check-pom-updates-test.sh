@@ -66,6 +66,225 @@ grep -Fq '1.1.0' <<<"$output"
 
 printf 'PASS: outdated direct parent versions cause a failing update check.\n'
 
+# An aggregator can keep its own POM version-light while module POMs declare
+# direct dependencies. Those declarations must still be checked and reported
+# against their reactor-relative POM path.
+reactor_project="$fixture/reactor-project"
+mkdir -p "$reactor_project/service-module"
+cat > "$reactor_project/pom.xml" <<'POM'
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.example</groupId>
+  <artifactId>reactor</artifactId>
+  <version>1.0.0</version>
+  <modules>
+    <module>service-module</module>
+  </modules>
+</project>
+POM
+cat > "$reactor_project/service-module/pom.xml" <<'POM'
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>com.example</groupId>
+    <artifactId>reactor</artifactId>
+    <version>1.0.0</version>
+  </parent>
+  <artifactId>service-module</artifactId>
+  <dependencies>
+    <dependency>
+      <groupId>com.example</groupId>
+      <artifactId>stale-library</artifactId>
+      <version>1.0.0</version>
+    </dependency>
+  </dependencies>
+</project>
+POM
+
+reactor_maven="$fixture/reactor-mvn"
+cat > "$reactor_maven" <<'MAVEN'
+#!/usr/bin/env bash
+set -euo pipefail
+
+output_file=""
+goal=""
+pom_file=""
+while (( $# > 0 )); do
+  argument=$1
+  shift
+  case "$argument" in
+    -Dversions.outputFile=*) output_file=${argument#-Dversions.outputFile=} ;;
+    -f|--file)
+      if (( $# == 0 )); then
+        printf 'missing Maven POM file argument\n' >&2
+        exit 71
+      fi
+      pom_file=$1
+      shift
+      ;;
+    -f=*|--file=*) pom_file=${argument#*=} ;;
+    *:display-dependency-updates) goal=dependency ;;
+    *:display-parent-updates) goal=parent ;;
+    *:display-plugin-updates) goal=plugin ;;
+  esac
+done
+
+if [[ -z "$output_file" ]]; then
+  printf 'missing Maven output file argument\n' >&2
+  exit 70
+fi
+
+if [[ -f "$PWD/custom-pom.xml" && "$pom_file" != "$PWD/custom-pom.xml" ]]; then
+  printf 'expected Maven -f %s, got %s\n' "$PWD/custom-pom.xml" "${pom_file:-none}" >&2
+  exit 72
+fi
+
+case "$goal" in
+  dependency)
+    printf '%s\n' 'The following dependencies in Dependencies have newer versions:' > "$output_file"
+    printf '%s\n' 'com.example:stale-library 1.0.0 -> 2.0.0' >> "$output_file"
+    ;;
+  parent) printf '%s\n' 'The parent project is the latest version:' > "$output_file" ;;
+  plugin) printf '%s\n' 'All plugins with a version specified are using the latest versions.' > "$output_file" ;;
+esac
+MAVEN
+chmod +x "$reactor_maven"
+
+set +e
+reactor_output=$(python3 "$checker" --project "$reactor_project" --maven-command "$reactor_maven" --fail-on-outdated 2>&1)
+reactor_status=$?
+set -e
+if (( reactor_status != 1 )); then
+  printf 'Expected a stale module dependency to exit 1, got %s.\n%s\n' "$reactor_status" "$reactor_output" >&2
+  exit 1
+fi
+grep -Fq 'service-module/pom.xml' <<<"$reactor_output"
+grep -Fq 'com.example:stale-library' <<<"$reactor_output"
+grep -Fq '2.0.0' <<<"$reactor_output"
+
+printf 'PASS: reactor module dependencies are included in update checks.\n'
+
+# An empty module declaration cannot identify a POM to check and must fail
+# closed instead of making the reactor appear current.
+invalid_reactor_project="$fixture/invalid-reactor-project"
+mkdir -p "$invalid_reactor_project"
+cat > "$invalid_reactor_project/pom.xml" <<'POM'
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.example</groupId>
+  <artifactId>invalid-reactor</artifactId>
+  <version>1.0.0</version>
+  <modules>
+    <module>   </module>
+  </modules>
+</project>
+POM
+
+set +e
+invalid_reactor_output=$(python3 "$checker" --project "$invalid_reactor_project" --maven-command "$reactor_maven" --fail-on-outdated 2>&1)
+invalid_reactor_status=$?
+set -e
+if (( invalid_reactor_status != 2 )); then
+  printf 'Expected an empty reactor module declaration to exit 2, got %s.\n%s\n' "$invalid_reactor_status" "$invalid_reactor_output" >&2
+  exit 1
+fi
+grep -Fq 'reactor module path is empty' <<<"$invalid_reactor_output"
+
+printf 'PASS: empty reactor module declarations fail closed.\n'
+
+# Maven reactor modules may be declared outside the aggregator directory. The
+# report must preserve that path and return the stale-update status, not fail
+# while formatting it.
+external_fixture="$fixture/external-reactor"
+external_reactor_project="$external_fixture/reactor"
+external_module_project="$external_fixture/shared-module"
+mkdir -p "$external_reactor_project" "$external_module_project"
+cat > "$external_reactor_project/pom.xml" <<'POM'
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.example</groupId>
+  <artifactId>external-reactor</artifactId>
+  <version>1.0.0</version>
+  <modules>
+    <module>../shared-module</module>
+  </modules>
+</project>
+POM
+cat > "$external_module_project/pom.xml" <<'POM'
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.example</groupId>
+  <artifactId>shared-module</artifactId>
+  <version>1.0.0</version>
+  <dependencies>
+    <dependency>
+      <groupId>com.example</groupId>
+      <artifactId>stale-library</artifactId>
+      <version>1.0.0</version>
+    </dependency>
+  </dependencies>
+</project>
+POM
+
+set +e
+external_reactor_output=$(python3 "$checker" --project "$external_reactor_project" --maven-command "$reactor_maven" --fail-on-outdated 2>&1)
+external_reactor_status=$?
+set -e
+if (( external_reactor_status != 1 )); then
+  printf 'Expected a stale external reactor module to exit 1, got %s.\n%s\n' "$external_reactor_status" "$external_reactor_output" >&2
+  exit 1
+fi
+grep -Fq '../shared-module/pom.xml' <<<"$external_reactor_output"
+grep -Fq 'com.example:stale-library' <<<"$external_reactor_output"
+
+printf 'PASS: external reactor module paths are reported.\n'
+
+# Maven also allows a module declaration to name its POM file directly rather
+# than its directory. The checker must check that POM without adding another
+# /pom.xml path segment.
+file_module_reactor="$fixture/file-module-reactor"
+file_module_child="$file_module_reactor/child"
+mkdir -p "$file_module_child"
+cat > "$file_module_reactor/pom.xml" <<'POM'
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.example</groupId>
+  <artifactId>file-module-reactor</artifactId>
+  <version>1.0.0</version>
+  <modules>
+    <module>child/custom-pom.xml</module>
+  </modules>
+</project>
+POM
+cat > "$file_module_child/custom-pom.xml" <<'POM'
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.example</groupId>
+  <artifactId>custom-file-module</artifactId>
+  <version>1.0.0</version>
+  <dependencies>
+    <dependency>
+      <groupId>com.example</groupId>
+      <artifactId>stale-library</artifactId>
+      <version>1.0.0</version>
+    </dependency>
+  </dependencies>
+</project>
+POM
+
+set +e
+file_module_output=$(python3 "$checker" --project "$file_module_reactor" --maven-command "$reactor_maven" --fail-on-outdated 2>&1)
+file_module_status=$?
+set -e
+if (( file_module_status != 1 )); then
+  printf 'Expected a stale file-valued module to exit 1, got %s.\n%s\n' "$file_module_status" "$file_module_output" >&2
+  exit 1
+fi
+grep -Fq 'child/custom-pom.xml' <<<"$file_module_output"
+grep -Fq 'com.example:stale-library' <<<"$file_module_output"
+
+printf 'PASS: file-valued reactor module paths are reported.\n'
+
 # A POM without Maven's namespace cannot be safely interpreted as a Maven POM.
 # It must fail instead of silently finding no version declarations.
 unsupported_project="$fixture/unsupported-project"

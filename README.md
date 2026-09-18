@@ -80,7 +80,7 @@ Version `0.14.0` bundles Codex `PreToolUse` hooks. After installing or upgrading
 - Before `git commit`, it scans staged changes with `gitleaks protect --staged`.
 - Before `git push`, it scans the current branch range using the scanner's established default-base resolution.
 - A finding, missing `gitleaks`, or scanner failure blocks that Codex Git command. The hook intentionally suppresses scanner output so it cannot pass a matched secret back into the model context.
-- Before `git commit` in a Maven repository, it checks direct root-POM parent, dependency, and build-plugin versions for stable updates. It excludes profiles, dependency management, plugin management, and nested modules.
+- Before `git commit` in a Maven repository, it checks direct parent, dependency, and build-plugin versions for stable updates in the root POM and every reactor module declared through `<modules>`. It excludes profiles, dependency management, and plugin management.
 - Available updates block the commit and show Codex the report. Codex must ask whether to update the POM or defer it. Only after explicit user approval may Codex retry using `git -c nda.pom-update-check.override=<reason> commit ...`.
 - A Maven checker or metadata-resolution failure also blocks the commit; it is not treated as proof that the POM is current.
 
