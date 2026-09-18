@@ -35,21 +35,23 @@ run_hook() {
 }
 
 # A commit scans staged changes and permits a clean result.
-if ! clean_output=$(FAKE_SCAN_EXIT=0 run_hook 'git commit -m message'); then
+if ! clean_output=$(FAKE_SCAN_EXIT=0 run_hook 'git commit -m message' 2>"$fixture/clean.stderr"); then
   printf 'Expected a clean Git commit scan to pass.\n' >&2
   exit 1
 fi
 [[ -z "$clean_output" ]]
+[[ ! -s "$fixture/clean.stderr" ]]
 grep -Fxq 'true' "$fixture/scans.log"
 
 # The nested Codex command runner supplies its shell command as `cmd`, not
 # the Bash tool's `command` field. It must receive the same secret gate.
 scan_count_before=$(wc -l < "$fixture/scans.log")
-if ! nested_runner_output=$(FAKE_SCAN_EXIT=0 run_hook 'git commit -m message' cmd); then
+if ! nested_runner_output=$(FAKE_SCAN_EXIT=0 run_hook 'git commit -m message' cmd 2>"$fixture/nested-runner.stderr"); then
   printf 'Expected a nested command-runner Git commit scan to pass.\n' >&2
   exit 1
 fi
 [[ -z "$nested_runner_output" ]]
+[[ ! -s "$fixture/nested-runner.stderr" ]]
 scan_count_after=$(wc -l < "$fixture/scans.log")
 if (( scan_count_after != scan_count_before + 1 )); then
   printf 'Expected a nested command-runner Git commit to invoke the scanner.\n' >&2
@@ -58,7 +60,7 @@ fi
 
 # A finding blocks the Git command and never forwards scanner output.
 set +e
-finding_output=$(FAKE_SCAN_EXIT=1 run_hook 'git commit -m message')
+finding_output=$(FAKE_SCAN_EXIT=1 run_hook 'git commit -m message' 2>"$fixture/finding-denial.stderr")
 finding_status=$?
 set -e
 if (( finding_status != 2 )); then
@@ -79,6 +81,14 @@ assert output["hookEventName"] == "PreToolUse"
 assert output["permissionDecision"] == "deny"
 assert "Git commit" in output["permissionDecisionReason"]
 ' <<<"$finding_output"
+if ! grep -Fq 'Secret scan failed before Git commit' "$fixture/finding-denial.stderr"; then
+  printf 'Expected a denied secret scan to write its blocking reason to stderr.\n' >&2
+  exit 1
+fi
+if grep -Fq 'scanner-output-must-not-be-forwarded' "$fixture/finding-denial.stderr"; then
+  printf 'Expected scanner output to remain hidden on stderr after a finding.\n' >&2
+  exit 1
+fi
 
 # Tool errors also deny the Git command.
 set +e
@@ -92,20 +102,22 @@ fi
 grep -Fq 'Git commit' <<<"$error_output"
 
 # A push scans the branch range rather than staged changes.
-if ! push_output=$(FAKE_SCAN_EXIT=0 run_hook 'git push origin topic'); then
+if ! push_output=$(FAKE_SCAN_EXIT=0 run_hook 'git push origin topic' 2>"$fixture/push.stderr"); then
   printf 'Expected a clean Git push scan to pass.\n' >&2
   exit 1
 fi
 [[ -z "$push_output" ]]
+[[ ! -s "$fixture/push.stderr" ]]
 grep -Fxq 'range' "$fixture/scans.log"
 
 # Other shell commands do not invoke the scanner.
 scan_count_before=$(wc -l < "$fixture/scans.log")
-if ! no_op_output=$(FAKE_SCAN_EXIT=70 run_hook 'echo not-a-git-command'); then
+if ! no_op_output=$(FAKE_SCAN_EXIT=70 run_hook 'echo not-a-git-command' 2>"$fixture/no-op.stderr"); then
   printf 'Expected a non-Git command to be ignored.\n' >&2
   exit 1
 fi
 [[ -z "$no_op_output" ]]
+[[ ! -s "$fixture/no-op.stderr" ]]
 scan_count_after=$(wc -l < "$fixture/scans.log")
 if [[ "$scan_count_before" != "$scan_count_after" ]]; then
   printf 'Expected a non-Git command not to invoke the scanner.\n' >&2

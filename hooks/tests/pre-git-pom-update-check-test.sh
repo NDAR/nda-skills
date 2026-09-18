@@ -33,7 +33,7 @@ chmod +x "$checker"
 
 set +e
 output=$(printf '{"cwd":"%s","tool_input":{"cmd":"git commit -m message"}}\n' "$repo/nested" |
-  PLUGIN_ROOT="$plugin_root" "$wrapper")
+  PLUGIN_ROOT="$plugin_root" "$wrapper" 2>"$fixture/outdated-denial.stderr")
 status=$?
 set -e
 
@@ -54,6 +54,11 @@ assert "Maven version updates are available" in reason
 assert "com.example:library" in reason
 assert "\n\n# Maven Version Update Report" in reason
 ' <<<"$output"
+
+if ! grep -Fq 'Maven version updates are available' "$fixture/outdated-denial.stderr"; then
+  printf 'Expected a denied Maven commit to write its blocking reason to stderr.\n' >&2
+  exit 1
+fi
 
 printf 'PASS: outdated Maven versions deny a Git commit with the update report.\n'
 

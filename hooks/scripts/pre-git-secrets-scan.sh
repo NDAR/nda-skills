@@ -2,6 +2,7 @@
 set -euo pipefail
 
 deny() {
+  printf '%s\n' "$1" >&2
   python3 - "$1" <<'PY'
 import json
 import sys
