@@ -75,7 +75,7 @@ The scanner script is written against gitleaks' `detect` and `protect` subcomman
 
 ### Codex lifecycle hooks
 
-Version `0.13.0` bundles Codex `PreToolUse` hooks. After installing or upgrading the plugin, review and trust the hooks with `/hooks`; Codex skips a new or changed plugin hook until it has been trusted. The hooks run before Codex issues a Bash Git command:
+Version `0.14.0` bundles Codex `PreToolUse` hooks. After installing or upgrading the plugin, review and trust the hooks with `/hooks`; Codex skips a new or changed plugin hook until it has been trusted. The hooks match Codex Git commands issued through `Bash` and include an `exec` compatibility matcher for hosts that expose unified execution with that tool name:
 
 - Before `git commit`, it scans staged changes with `gitleaks protect --staged`.
 - Before `git push`, it scans the current branch range using the scanner's established default-base resolution.

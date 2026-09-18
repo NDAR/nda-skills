@@ -1,6 +1,6 @@
 {
   "name": "nda-skills",
-  "version": "0.13.0",
+  "version": "0.14.0",
   "description": "NDA team skills for Codex across our Java, Python, and Angular repos.",
   "license": "MIT",
   "keywords": ["skills", "nda", "team"],

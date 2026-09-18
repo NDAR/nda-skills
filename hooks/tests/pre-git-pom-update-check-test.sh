@@ -144,7 +144,8 @@ done
 
 printf 'PASS: ambiguous Git commit forms are denied instead of skipping the POM check.\n'
 
-# The plugin must expose the wrapper as a synchronous PreToolUse Bash hook.
+# The plugin must expose each gate once through a compatibility matcher, so a
+# tool that reports both Bash and exec aliases cannot run either gate twice.
 python3 - "$hook_dir/../.codex-plugin/plugin.json" "$hook_dir/hooks.json" <<'PY'
 import json
 import sys
@@ -156,18 +157,18 @@ with open(hooks_path) as handle:
     config = json.load(handle)
 
 assert manifest["hooks"] == "./hooks/hooks.json"
-handlers = [
-    handler
-    for registration in config["hooks"]["PreToolUse"]
-    if registration["matcher"] == "Bash"
-    for handler in registration["hooks"]
-    if "pre-git-pom-update-check.sh" in handler["command"]
-]
-assert len(handlers) == 1
-handler = handlers[0]
-assert handler["type"] == "command"
-assert handler["timeout"] == 300
-assert handler.get("async") is not True
+registrations = config["hooks"]["PreToolUse"]
+assert len(registrations) == 1
+registration = registrations[0]
+assert registration["matcher"] == "^(?:Bash|exec)$"
+handlers = registration["hooks"]
+assert {handler["command"] for handler in handlers} == {
+    '"${PLUGIN_ROOT}/hooks/scripts/pre-git-secrets-scan.sh"',
+    '"${PLUGIN_ROOT}/hooks/scripts/pre-git-pom-update-check.sh"',
+}
+assert {handler["timeout"] for handler in handlers} == {120, 300}
+assert all(handler["type"] == "command" for handler in handlers)
+assert all(handler.get("async") is not True for handler in handlers)
 PY
 
 printf 'PASS: pre-Git Maven version check is registered as a synchronous plugin hook.\n'

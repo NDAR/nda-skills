@@ -3,19 +3,14 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Bash",
+        "matcher": "^(?:Bash|exec)$",
         "hooks": [
           {
             "type": "command",
             "command": "\"${PLUGIN_ROOT}/hooks/scripts/pre-git-secrets-scan.sh\"",
             "timeout": 120,
             "statusMessage": "Scanning Git changes for secrets"
-          }
-        ]
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [
+          },
           {
             "type": "command",
             "command": "\"${PLUGIN_ROOT}/hooks/scripts/pre-git-pom-update-check.sh\"",

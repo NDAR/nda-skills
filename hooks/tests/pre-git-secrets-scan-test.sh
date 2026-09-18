@@ -97,7 +97,7 @@ if [[ "$scan_count_before" != "$scan_count_after" ]]; then
   exit 1
 fi
 
-# The plugin exposes the wrapper as a synchronous PreToolUse Bash hook.
+# The plugin exposes the wrapper once through the Bash/exec compatibility matcher.
 python3 - "$repo_root/.codex-plugin/plugin.json" "$repo_root/hooks/hooks.json" <<'PY'
 import json
 import sys
@@ -109,8 +109,15 @@ with open(hooks_path) as handle:
     config = json.load(handle)
 
 assert manifest["hooks"] == "./hooks/hooks.json"
-handler = config["hooks"]["PreToolUse"][0]["hooks"][0]
-assert config["hooks"]["PreToolUse"][0]["matcher"] == "Bash"
+registrations = config["hooks"]["PreToolUse"]
+assert len(registrations) == 1
+registration = registrations[0]
+assert registration["matcher"] == "^(?:Bash|exec)$"
+handler = next(
+    handler
+    for handler in registration["hooks"]
+    if "pre-git-secrets-scan.sh" in handler["command"]
+)
 assert handler["type"] == "command"
 assert "${PLUGIN_ROOT}/hooks/scripts/pre-git-secrets-scan.sh" in handler["command"]
 assert handler["timeout"] == 120
