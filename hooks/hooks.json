@@ -12,6 +12,17 @@
             "statusMessage": "Scanning Git changes for secrets"
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${PLUGIN_ROOT}/hooks/scripts/pre-git-pom-update-check.sh\"",
+            "timeout": 300,
+            "statusMessage": "Checking Maven POM versions"
+          }
+        ]
       }
     ]
   }

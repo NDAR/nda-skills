@@ -73,15 +73,18 @@ The `secrets-credential-scanning` skill wraps [gitleaks](https://github.com/gitl
 
 The scanner script is written against gitleaks' `detect` and `protect` subcommands (v8.x). If a future major gitleaks version renames or removes those subcommands, the scan itself will fail to produce a report, and the script's report-file check turns that into a loud, visible scan failure rather than a silent false pass.
 
-### Codex lifecycle hook
+### Codex lifecycle hooks
 
-Version `0.11.0` bundles a Codex `PreToolUse` hook. After installing or upgrading the plugin, review and trust the hook with `/hooks`; Codex skips a new or changed plugin hook until it has been trusted. The hook runs before Codex issues a Bash `git commit` or `git push` command:
+Version `0.13.0` bundles Codex `PreToolUse` hooks. After installing or upgrading the plugin, review and trust the hooks with `/hooks`; Codex skips a new or changed plugin hook until it has been trusted. The hooks run before Codex issues a Bash Git command:
 
 - Before `git commit`, it scans staged changes with `gitleaks protect --staged`.
 - Before `git push`, it scans the current branch range using the scanner's established default-base resolution.
 - A finding, missing `gitleaks`, or scanner failure blocks that Codex Git command. The hook intentionally suppresses scanner output so it cannot pass a matched secret back into the model context.
+- Before `git commit` in a Maven repository, it checks direct root-POM parent, dependency, and build-plugin versions for stable updates. It excludes profiles, dependency management, plugin management, and nested modules.
+- Available updates block the commit and show Codex the report. Codex must ask whether to update the POM or defer it. Only after explicit user approval may Codex retry using `git -c nda.pom-update-check.override=<reason> commit ...`.
+- A Maven checker or metadata-resolution failure also blocks the commit; it is not treated as proof that the POM is current.
 
-The hook covers Git commands issued by Codex only. It does not install a Git hook in target repositories, scan Git commands run outside Codex, or replace required CI/PR checks. Use `$secrets-credential-scanning` for manual scans and PR-range scans.
+The hooks cover Git commands issued by Codex only. They do not install Git hooks in target repositories, scan Git commands run outside Codex, or replace required CI/PR checks. Use `$secrets-credential-scanning` for manual scans and PR-range scans.
 
 To allowlist a confirmed false positive (for example, a documented example key used only in a test fixture), add a narrowly-scoped entry to a repo-root `.gitleaks.toml` and get it reviewed like any other code change. gitleaks *replaces* its embedded default ruleset with whatever config it loads from the source root, so the `[extend]` block below is required to keep gitleaks' built-in detection rules active — without it, a custom `.gitleaks.toml` silently disables all default rules and the scan would stop detecting anything:
 
