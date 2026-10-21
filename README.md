@@ -2,7 +2,7 @@
 
 Shared Codex skills for the NDA team, distributed as a Codex plugin marketplace.
 
-One repo, many consumers: skills live here, and developers install them from this marketplace with Codex CLI. Updates propagate to the team with a single command. The current skills cover shared workflows and Java/Spring code; Codex triggers each skill by its description, so a Java skill simply will not fire while working in an unrelated repository.
+One repo, many consumers: skills live here, and developers install them from this marketplace with Codex CLI. Updates propagate to the team with a single command. The current skills cover shared workflows, Java/Spring, and Angular code; Codex selects stack-specific skills by their descriptions.
 
 ## Prerequisites
 
@@ -67,6 +67,24 @@ Set `SONAR_REQUIRED=true` in CI when SonarQube validation is mandatory. This mak
 
 For pull-request analysis, also set `SONAR_PULL_REQUEST_KEY`, `SONAR_PULL_REQUEST_BRANCH`, and `SONAR_PULL_REQUEST_BASE`. For branch analysis, set `SONAR_BRANCH_NAME` instead. The configured SonarQube Quality Gate must require new-code coverage of at least 80% and zero new bugs.
 
+## Angular development and verification
+
+The Angular set mirrors the Java/Spring structure:
+
+| Skill | Purpose |
+| --- | --- |
+| `angular-coding-standards` | Repository-first conventions for Angular/TypeScript, components, templates, state, accessibility, and tests. |
+| `angular-harness` | Coordinate TDD, command discovery, fast checks, review, and completion checks in Angular CLI or Nx workspaces. |
+| `angular-verification` | Run lint, full tests for the selected projects, fresh LCOV coverage, production builds, and configured SonarQube checks. |
+
+Use `$angular-harness` for an Angular change. The skills honor the installed Angular version, package manager, and test runner; they do not require migrations to newer APIs or tooling.
+
+The fast-check helper requires `FORMAT_CHECK_CMD`, `ANGULAR_LINT_CMD`, and `TEST_TOUCHED_CMD`. Final verification requires `ANGULAR_LINT_CMD`, `ANGULAR_TEST_CMD`, and `ANGULAR_BUILD_CMD`, plus explicit `--lcov` paths. Commands must be selected from the target workspace; the helpers do not guess Nx targets or start watch-mode tests. Invoke the helpers with `bash` and `python3`, respectively.
+
+Each expected coverage report must be fresh and meet **80% line coverage** by default. `COVERAGE_MINIMUM` supports explicit repository/task overrides, which must be reported. SonarQube uses the same connection and analysis-context variables described for Java above, plus an installed SonarScanner CLI. Its gate must expose new-code coverage and new-bug conditions. Set `SONAR_REQUIRED=true` in CI to make absent credentials fail; partial connection settings always fail. Local-only success explicitly leaves Sonar verification pending.
+
+See [Angular verification](skills/angular/angular-verification/SKILL.md) and its [command configuration](skills/angular/angular-verification/references/commands.md) for examples, prerequisites, and limitations.
+
 ## Secrets scanning (gitleaks)
 
 The `secrets-credential-scanning` skill wraps [gitleaks](https://github.com/gitleaks/gitleaks) and is wired as a required sub-skill of `codecommit-pr-merge` and `java-spring-harness`. Install gitleaks locally before those workflows run (`brew install gitleaks`, or download a release binary) — the skill does not install it for you.
@@ -111,6 +129,7 @@ Never widen an allowlist entry beyond the specific known-fake value or path it c
 skills/
   common/                          # cross-stack skills (PR/commit workflow, etc.)
   java-springboot/                 # Java and Spring conventions
+  angular/                         # Angular CLI and Nx conventions and checks
 ```
 
 Skills are grouped into folders by stack for maintenance clarity. Codex scans nested folders under `skills/`, so grouping does not affect discovery — a skill fires based on its description regardless of which folder it lives in. The folders are for our own navigation.

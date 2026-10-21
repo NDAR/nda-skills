@@ -1,0 +1,4 @@
+interface:
+  display_name: "Angular Verification"
+  short_description: "Verify Angular builds, coverage, and SonarQube gates."
+  default_prompt: "Use $angular-verification to verify this Angular change."

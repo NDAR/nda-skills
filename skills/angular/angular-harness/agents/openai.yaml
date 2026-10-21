@@ -1,0 +1,4 @@
+interface:
+  display_name: "Angular Harness"
+  short_description: "Coordinate Angular standards, tests, and verification."
+  default_prompt: "Use $angular-harness for this Angular application or library change."
