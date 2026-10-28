@@ -1,0 +1,4 @@
+interface:
+  display_name: "Angular Coding Standards"
+  short_description: "Apply repository-aware Angular coding conventions."
+  default_prompt: "Use $angular-coding-standards for this Angular change."
