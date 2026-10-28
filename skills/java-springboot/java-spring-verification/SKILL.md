@@ -24,3 +24,9 @@ Run deterministic checks before reporting a Java service change as complete. Rep
 ## SonarQube Prerequisites
 
 Require the target project’s Quality Gate to include `new_coverage >= 80` and `new_bugs = 0`. Keep `SONAR_TOKEN` only in an environment variable or secret store; never put it in commands, source, reports, or commits.
+
+Export `SONAR_HOST_URL`, `SONAR_PROJECT_KEY`, and `SONAR_TOKEN` in the agent's
+command-running environment before starting it. Load the token securely;
+`SONAR_CODEX_TOKEN` is not supported. If configuration is missing, report the
+missing variable names without printing values. See the repository README's
+local environment examples for branch and pull-request configuration.

@@ -16,12 +16,17 @@ service verification, use `java-spring-verification`; this sensor is the
 focused SonarQube signal, not a replacement for Maven or JaCoCo verification.
 
 Set `SONAR_HOST_URL`, `SONAR_TOKEN`, and `SONAR_PROJECT_KEY` in the environment.
-Never place a token in a command, source file, report, or commit.
+These variables must be exported in the agent's command-running environment,
+not only set in another terminal. Load `SONAR_TOKEN` securely before starting
+the agent; only `SONAR_TOKEN` is supported, not `SONAR_CODEX_TOKEN`. Never
+print its value or place it in a command, source file, report, or commit.
+If configuration is missing, name the missing variable without exposing secrets.
+The runtime needs access to the server, Maven (or `./mvnw`), `curl`, and `python3`.
 
 Select exactly one analysis context:
 
 - Pull request: set `SONAR_PULL_REQUEST_KEY`, `SONAR_PULL_REQUEST_BRANCH`, and
-  `SONAR_PULL_REQUEST_BASE`.
+  `SONAR_PULL_REQUEST_BASE`. Any partial tuple is rejected before scanning.
 - Branch: set `SONAR_BRANCH_NAME`.
 - Local fallback: leave both unset only when the current Git branch is the
   intended, analyzed SonarQube branch.
@@ -38,4 +43,7 @@ Report the Quality Gate plus new-code coverage, bugs, vulnerabilities, code
 smells, security hotspots, and duplicated-lines density. `N/A` means the
 server did not return that metric; do not invent a value. Treat a non-OK
 Quality Gate or a failed command as a failed sensor. The server Quality Gate
-defines policy thresholds and remains authoritative.
+defines policy thresholds and remains authoritative. A completed analysis with
+a failed gate still emits metrics and exits nonzero. The gate is queried by
+the submitted analysis ID; metrics are the latest values for the selected
+project/context and can change if concurrent scans finish.

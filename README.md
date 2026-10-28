@@ -121,9 +121,43 @@ regexes = [
 
 Never widen an allowlist entry beyond the specific known-fake value or path it covers.
 
+### Local environment for the agent
+
+Export the service settings in the environment used to launch the agent (or inject them into its runtime through your secret manager):
+
+```bash
+export SONAR_HOST_URL='https://your-sonarqube-server'
+export SONAR_PROJECT_KEY='your-service-key'
+export SONAR_BRANCH_NAME='your-feature-branch'
+unset SONAR_PULL_REQUEST_KEY SONAR_PULL_REQUEST_BRANCH SONAR_PULL_REQUEST_BASE
+```
+
+Also export `SONAR_TOKEN` securely through your local secret-management setup. It must be authorized to submit analyses and read results. Do not paste the token into a chat, command argument, committed file, or log. Only `SONAR_TOKEN` is recognized; `SONAR_CODEX_TOKEN` is not supported.
+
+The agent's command-running process must inherit these exported variables. Start a new agent process from the configured environment if the existing one does not have them; setting a variable in another terminal does not update an already-running process. Keep project and branch settings specific to the service being analyzed.
+
+For a pull request, replace the branch selection with the complete tuple:
+
+```bash
+unset SONAR_BRANCH_NAME
+export SONAR_PULL_REQUEST_KEY='42'
+export SONAR_PULL_REQUEST_BRANCH='your-feature-branch'
+export SONAR_PULL_REQUEST_BASE='main'
+```
+
 ### SonarQube new-code sensor
 
 `sonar-new-code` is the focused command-line companion to the IDE's **Focus on New Code** view. It runs a Maven SonarQube branch or pull-request analysis, waits for the Quality Gate, and reports new-code metrics without printing the token. Use `java-spring-verification` when Maven and JaCoCo verification are also required.
+
+Run the sensor from the target service's Maven project root after tests have generated its coverage report:
+
+```bash
+/path/to/nda-skills/skills/java-springboot/sonar-new-code/scripts/check-sonar-new-code.sh
+```
+
+The path may point directly to a local checkout or worktree to test changes before merge. Ask the agent to use `sonar-new-code` for a focused report, or `java-spring-verification` for the full Maven and coverage workflow. The sensor requires access to the configured SonarQube server, Maven (or `./mvnw`), `curl`, and `python3`.
+
+The sensor rejects incomplete pull-request tuples before scanning. If no context variables are supplied, it uses the current Git branch. Its report includes the submitted analysis's Quality Gate and new-code metrics; missing measurements appear as `N/A`. A completed analysis with a failed gate still prints metrics and exits nonzero. Scanner failures also exit nonzero. Gate queries are tied to the current analysis ID; metric queries read the latest values for the selected project/context.
 
 ## Repository layout
 
