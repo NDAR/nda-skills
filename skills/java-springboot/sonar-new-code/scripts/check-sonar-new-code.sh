@@ -65,7 +65,11 @@ encode() {
 sonar_url=${SONAR_HOST_URL%/}
 project_key=$(encode "$SONAR_PROJECT_KEY")
 encoded_context=$(encode "$context_value")
-authorization=(--header "Authorization: Bearer $SONAR_TOKEN")
+# Read the header from stdin so the token is absent from curl's process arguments.
+sonar_get() {
+  curl --fail-with-body --silent --show-error --header @- "$1" \
+    <<< "Authorization: Bearer $SONAR_TOKEN"
+}
 
 # Resolve the submitted analysis on every run, including successful scans.
 # Project/context gate queries could return a concurrent scan's result.
@@ -77,8 +81,7 @@ result_status=$scanner_status
 }
 task_id=$(sed -n 's/^ceTaskId=//p' "$scan_metadata")
 [[ -n $task_id ]] || exit "$result_status"
-task=$(curl --fail-with-body --silent --show-error "${authorization[@]}" \
-  "$sonar_url/api/ce/task?id=$(encode "$task_id")") || exit "$result_status"
+task=$(sonar_get "$sonar_url/api/ce/task?id=$(encode "$task_id")") || exit "$result_status"
 analysis_id=$(python3 -c '
 import json, sys
 task = json.loads(sys.argv[1]).get("task", {})
@@ -88,15 +91,13 @@ print(task["analysisId"])
 ' "$task") || exit "$result_status"
 gate_query="analysisId=$(encode "$analysis_id")"
 
-quality_gate=$(curl --fail-with-body --silent --show-error "${authorization[@]}" \
-  "$sonar_url/api/qualitygates/project_status?$gate_query")
+quality_gate=$(sonar_get "$sonar_url/api/qualitygates/project_status?$gate_query")
 if (( scanner_status != 0 )); then
   # Only a failed gate explains a scanner failure that may still be reported.
   python3 -c 'import json, sys; sys.exit(json.loads(sys.argv[1]).get("projectStatus", {}).get("status") != "ERROR")' \
     "$quality_gate" || exit "$scanner_status"
 fi
-measures=$(curl --fail-with-body --silent --show-error "${authorization[@]}" \
-  "$sonar_url/api/measures/component?component=$project_key&metricKeys=new_coverage%2Cnew_bugs%2Cnew_vulnerabilities%2Cnew_code_smells%2Cnew_security_hotspots%2Cnew_duplicated_lines_density&$context_parameter=$encoded_context")
+measures=$(sonar_get "$sonar_url/api/measures/component?component=$project_key&metricKeys=new_coverage%2Cnew_bugs%2Cnew_vulnerabilities%2Cnew_code_smells%2Cnew_security_hotspots%2Cnew_duplicated_lines_density&$context_parameter=$encoded_context")
 
 python3 - "$quality_gate" "$measures" <<'PY'
 import json

@@ -17,6 +17,9 @@ printf '%s\n' '#!/usr/bin/env bash' 'printf "%s\n" "$*" >> maven.args' \
   > "$fixture/mvnw"
 chmod +x "$fixture/mvnw"
 printf '%s\n' '#!/usr/bin/env bash' \
+  'for arg in "$@"; do if [[ "$arg" == *"$SONAR_TOKEN"* ]]; then printf "FAIL: token exposed in curl arguments\n" >&2; exit 1; fi; done' \
+  '[[ " $* " == *" --header @- "* ]] || { printf "FAIL: expected header from stdin\n" >&2; exit 1; }' \
+  'IFS= read -r header; [[ "$header" == "Authorization: Bearer $SONAR_TOKEN" ]] || { printf "FAIL: missing authorization header\n" >&2; exit 1; }' \
   'if [[ "$*" == *"/api/qualitygates/project_status?"* ]]; then if [[ "$*" == *"?analysisId=current-analysis" ]]; then printf "%s\n" "$FAKE_QUALITY_GATE_RESPONSE"; else printf "%s\n" "{\"projectStatus\":{\"status\":\"ERROR\"}}"; fi; elif [[ "$*" == *"/api/ce/task?"* ]]; then printf "%s\n" "$FAKE_TASK_RESPONSE"; else printf "%s\n" "$FAKE_MEASURES_RESPONSE"; fi' \
   > "$fixture/bin/curl"
 chmod +x "$fixture/bin/curl"
